@@ -59,12 +59,12 @@ fn two_overrides_same_slot_deterministic_winner() {
 fn out_of_range_override_ignored() {
     let sources = vec!["PRECOG-A".to_string()];
     let mut overrides = HashMap::new();
-    overrides.insert("PRECOG-A".to_string(), 0u8);   // 0 is invalid
+    overrides.insert("PRECOG-A".to_string(), 0u8); // 0 is invalid
     let mapping_zero = assign_slots(&sources, &overrides);
     assert_eq!(mapping_zero.get("PRECOG-A"), Some(&1)); // falls through to alphabetical
 
     let mut overrides = HashMap::new();
-    overrides.insert("PRECOG-A".to_string(), 10u8);  // 10 > MAX_SLOTS
+    overrides.insert("PRECOG-A".to_string(), 10u8); // 10 > MAX_SLOTS
     let mapping_ten = assign_slots(&sources, &overrides);
     assert_eq!(mapping_ten.get("PRECOG-A"), Some(&1));
 }

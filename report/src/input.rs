@@ -5,13 +5,10 @@ use evdev::{Device, EventType, Key};
 use std::path::Path;
 use std::sync::mpsc::Sender;
 
-pub fn run_keyboard_loop(
-    device_path: impl AsRef<Path>,
-    tx: Sender<u8>,
-) -> Result<()> {
+pub fn run_keyboard_loop(device_path: impl AsRef<Path>, tx: Sender<u8>) -> Result<()> {
     let path = device_path.as_ref();
-    let mut device = Device::open(path)
-        .with_context(|| format!("opening evdev device {}", path.display()))?;
+    let mut device =
+        Device::open(path).with_context(|| format!("opening evdev device {}", path.display()))?;
 
     loop {
         let events = device

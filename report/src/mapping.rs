@@ -9,10 +9,7 @@ pub const MAX_SLOTS: u8 = 9;
 /// the remainder fill the lowest free slots alphabetically.
 ///
 /// Sources beyond the available slots (`MAX_SLOTS`) are dropped.
-pub fn assign_slots(
-    sources: &[String],
-    overrides: &HashMap<String, u8>,
-) -> HashMap<String, u8> {
+pub fn assign_slots(sources: &[String], overrides: &HashMap<String, u8>) -> HashMap<String, u8> {
     let mut mapping = HashMap::new();
     let mut taken = BTreeSet::new();
 

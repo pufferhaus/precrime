@@ -26,8 +26,14 @@ fn parses_source_slot_overrides() {
         "PRECOG-02-CCTV-DOOR" = 2
     "#;
     let cfg = ReportConfig::from_toml(raw).expect("parse");
-    assert_eq!(cfg.source_slot_overrides.get("PRECOG-01-IPHONE-STAGE"), Some(&1));
-    assert_eq!(cfg.source_slot_overrides.get("PRECOG-02-CCTV-DOOR"), Some(&2));
+    assert_eq!(
+        cfg.source_slot_overrides.get("PRECOG-01-IPHONE-STAGE"),
+        Some(&1)
+    );
+    assert_eq!(
+        cfg.source_slot_overrides.get("PRECOG-02-CCTV-DOOR"),
+        Some(&2)
+    );
 }
 
 #[test]

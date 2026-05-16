@@ -152,7 +152,12 @@ pub fn build_preview(
                 let y = (row * tile_h) as f64;
                 ctx.set_source_rgba(1.0, 0.0, 0.0, 1.0);
                 ctx.set_line_width(8.0);
-                ctx.rectangle(x + 4.0, y + 4.0, (tile_w as f64) - 8.0, (tile_h as f64) - 8.0);
+                ctx.rectangle(
+                    x + 4.0,
+                    y + 4.0,
+                    (tile_w as f64) - 8.0,
+                    (tile_h as f64) - 8.0,
+                );
                 let _ = ctx.stroke();
             }
         }
@@ -249,12 +254,10 @@ mod tests {
         let s = preview_pipeline_string(&sources, 34);
         assert!(s.contains("sink_0::xpos=0 sink_0::ypos=0 sink_0::width=960 sink_0::height=540"));
         assert!(s.contains("sink_1::xpos=960 sink_1::ypos=0 sink_1::width=960 sink_1::height=540"));
+        assert!(s.contains("sink_2::xpos=0 sink_2::ypos=540 sink_2::width=960 sink_2::height=540"));
         assert!(
-            s.contains("sink_2::xpos=0 sink_2::ypos=540 sink_2::width=960 sink_2::height=540")
+            s.contains("sink_3::xpos=960 sink_3::ypos=540 sink_3::width=960 sink_3::height=540")
         );
-        assert!(s.contains(
-            "sink_3::xpos=960 sink_3::ypos=540 sink_3::width=960 sink_3::height=540"
-        ));
     }
 
     #[test]
@@ -263,10 +266,12 @@ mod tests {
         let s = preview_pipeline_string(&sources, 34);
         // tile is 640x360 (1920/3 by 1080/3)
         assert!(s.contains("sink_0::xpos=0 sink_0::ypos=0 sink_0::width=640 sink_0::height=360"));
-        assert!(s.contains("sink_4::xpos=640 sink_4::ypos=360 sink_4::width=640 sink_4::height=360"));
-        assert!(s.contains(
-            "sink_8::xpos=1280 sink_8::ypos=720 sink_8::width=640 sink_8::height=360"
-        ));
+        assert!(
+            s.contains("sink_4::xpos=640 sink_4::ypos=360 sink_4::width=640 sink_4::height=360")
+        );
+        assert!(
+            s.contains("sink_8::xpos=1280 sink_8::ypos=720 sink_8::width=640 sink_8::height=360")
+        );
     }
 
     #[test]

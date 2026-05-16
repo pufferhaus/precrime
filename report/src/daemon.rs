@@ -4,7 +4,9 @@ use crate::config::ReportConfig;
 use crate::mapping::assign_slots;
 use crate::naming::{display_name, is_precog_source};
 use crate::ndi_find::Discovery;
-use crate::pipeline::{build_preview, build_program, select_slot, PreviewPipeline, ProgramPipeline};
+use crate::pipeline::{
+    build_preview, build_program, select_slot, PreviewPipeline, ProgramPipeline,
+};
 use anyhow::Result;
 use gstreamer::prelude::*;
 use parking_lot::Mutex;
@@ -169,11 +171,7 @@ impl Daemon {
 
     /// Stop any existing pipelines and install fresh ones built from `sources`.
     /// Always lock-then-release before calling set_state(Null) — see deadlock fix.
-    fn install_pipelines(
-        &self,
-        sources: &[String],
-        bus_tx: &Sender<BusEvent>,
-    ) -> Result<()> {
+    fn install_pipelines(&self, sources: &[String], bus_tx: &Sender<BusEvent>) -> Result<()> {
         // Phase 1: take old pipelines out under the lock + update state, then
         // RELEASE before destroying old pipelines (avoid cairo tally callback
         // deadlock).
@@ -252,7 +250,9 @@ fn spawn_bus_watch(
     pipeline: &gstreamer::Pipeline,
     tx: Sender<BusEvent>,
 ) -> Result<()> {
-    let bus = pipeline.bus().ok_or_else(|| anyhow::anyhow!("no bus on pipeline"))?;
+    let bus = pipeline
+        .bus()
+        .ok_or_else(|| anyhow::anyhow!("no bus on pipeline"))?;
     std::thread::Builder::new()
         .name(format!("report-bus-{which}"))
         .spawn(move || {
