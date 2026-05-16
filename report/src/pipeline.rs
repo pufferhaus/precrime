@@ -143,6 +143,29 @@ pub fn build_preview(
     Ok(PreviewPipeline { pipeline })
 }
 
+/// Escape an NDI source name for embedding inside a double-quoted
+/// gst-parse string. Backslash must be escaped first so the subsequent
+/// quote-escape doesn't get re-consumed by the parser.
 fn escape_ndi_name(name: &str) -> String {
-    name.replace('"', "")
+    name.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::escape_ndi_name;
+
+    #[test]
+    fn escapes_backslash_before_quote() {
+        assert_eq!(escape_ndi_name(r"CAM\1"), r"CAM\\1");
+        assert_eq!(escape_ndi_name(r#"CAM"X"#), r#"CAM\"X"#);
+        assert_eq!(escape_ndi_name(r#"CAM\"X"#), r#"CAM\\\"X"#);
+    }
+
+    #[test]
+    fn ordinary_names_unchanged() {
+        assert_eq!(
+            escape_ndi_name("PRECOG-01-IPHONE-STAGE"),
+            "PRECOG-01-IPHONE-STAGE"
+        );
+    }
 }

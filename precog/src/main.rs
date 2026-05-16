@@ -38,8 +38,9 @@ fn main() -> Result<()> {
         use gstreamer::MessageView;
         match msg.view() {
             MessageView::Eos(..) => {
-                warn!("EOS received, exiting");
-                break;
+                warn!("EOS received — exiting non-zero so systemd restarts (camera disconnect?)");
+                let _ = pipeline.set_state(gstreamer::State::Null);
+                return Err(anyhow::anyhow!("unexpected EOS"));
             }
             MessageView::Error(err) => {
                 error!(
@@ -67,7 +68,7 @@ fn build_pipeline_string(cfg: &PrecogConfig) -> String {
         h = cfg.height,
         fr = cfg.framerate
     );
-    let name_escaped = cfg.ndi_name.replace('"', "");
+    let name_escaped = cfg.ndi_name.replace('\\', "\\\\").replace('"', "\\\"");
     if cfg.use_combiner {
         format!(
             r#"v4l2src device="{dev}" ! {caps} ! videoconvert ! ndisinkcombiner name=c c.src ! ndisink ndi-name="{name}""#,
