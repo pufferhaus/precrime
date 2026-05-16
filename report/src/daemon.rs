@@ -110,6 +110,7 @@ impl Daemon {
             while let Ok(slot) = key_rx.try_recv() {
                 self.handle_keypress(slot)?;
             }
+            let mut needs_rebuild = false;
             while let Ok(event) = bus_rx.try_recv() {
                 match event {
                     BusEvent::Error { which, msg } => {
@@ -118,6 +119,12 @@ impl Daemon {
                     BusEvent::Eos { which } => {
                         warn!(pipeline = which, "pipeline EOS from bus");
                     }
+                }
+                needs_rebuild = true;
+            }
+            if needs_rebuild {
+                if let Err(e) = self.force_rebuild(&bus_tx) {
+                    error!(error = ?e, "rebuild after bus event failed");
                 }
             }
         }
@@ -142,18 +149,38 @@ impl Daemon {
         }
         let new_sources: Vec<String> = ordered.into_iter().flatten().collect();
 
-        // Phase 1: take old pipelines out under the lock, set active_slot,
-        // then RELEASE the lock before destroying old pipelines or building new ones.
-        // set_state(Null) blocks until streaming threads exit; the cairo tally
-        // callback also locks state. Holding the lock here would deadlock.
-        let (old_program, old_preview) = {
-            let mut st = self.state.lock();
+        {
+            let st = self.state.lock();
             if new_sources == st.sources_in_order {
                 return Ok(());
             }
-            info!(new = ?new_sources, "sources changed");
-            st.sources_in_order = new_sources.clone();
-            if new_sources.is_empty() {
+        }
+        info!(new = ?new_sources, "sources changed");
+        self.install_pipelines(&new_sources, bus_tx)
+    }
+
+    /// Tear down current pipelines and rebuild with the current `sources_in_order`.
+    /// Invoked when a bus watch reports an error or EOS on either pipeline.
+    fn force_rebuild(&self, bus_tx: &Sender<BusEvent>) -> Result<()> {
+        let sources = self.state.lock().sources_in_order.clone();
+        info!(?sources, "forced rebuild after bus event");
+        self.install_pipelines(&sources, bus_tx)
+    }
+
+    /// Stop any existing pipelines and install fresh ones built from `sources`.
+    /// Always lock-then-release before calling set_state(Null) — see deadlock fix.
+    fn install_pipelines(
+        &self,
+        sources: &[String],
+        bus_tx: &Sender<BusEvent>,
+    ) -> Result<()> {
+        // Phase 1: take old pipelines out under the lock + update state, then
+        // RELEASE before destroying old pipelines (avoid cairo tally callback
+        // deadlock).
+        let (old_program, old_preview) = {
+            let mut st = self.state.lock();
+            st.sources_in_order = sources.to_vec();
+            if sources.is_empty() {
                 st.active_slot = None;
             } else {
                 st.active_slot = Some(1);
@@ -161,8 +188,7 @@ impl Daemon {
             (st.program.take(), st.preview.take())
         };
 
-        // Phase 2: destroy old pipelines outside the lock. Bus watch threads
-        // exit cleanly when the pipeline goes NULL.
+        // Phase 2: stop old pipelines outside the lock.
         if let Some(p) = old_program {
             let _ = p.pipeline.set_state(gstreamer::State::Null);
         }
@@ -173,20 +199,20 @@ impl Daemon {
         // Phase 3: build new pipelines.
         let state_for_tally = self.state.clone();
         let preview = build_preview(
-            &new_sources,
+            sources,
             self.cfg.preview_connector_id,
             Arc::new(move || state_for_tally.lock().active_slot),
         )?;
         spawn_bus_watch("preview", &preview.pipeline, bus_tx.clone())?;
         preview.pipeline.set_state(gstreamer::State::Playing)?;
 
-        if new_sources.is_empty() {
+        if sources.is_empty() {
             let mut st = self.state.lock();
             st.preview = Some(preview);
             return Ok(());
         }
 
-        let program = build_program(&new_sources, self.cfg.program_connector_id)?;
+        let program = build_program(sources, self.cfg.program_connector_id)?;
         spawn_bus_watch("program", &program.pipeline, bus_tx.clone())?;
         program.pipeline.set_state(gstreamer::State::Playing)?;
         let _ = select_slot(&program.selector, 0);
