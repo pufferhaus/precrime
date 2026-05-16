@@ -306,7 +306,9 @@ Explicitly deferred. **Phase 2 immediate next** is the Remote Phone Control + Sm
 
 ### Phase 2 — immediate next
 
-- **Remote phone control + smart plug bus** — Apple Configurator + Single App Mode for iPhone PRECOGs to lock them to NDI HX Camera and auto-relaunch on crash. Tasmota/Shelly smart plugs per permanently-deployed PRECOG, controlled via a `mosquitto` MQTT broker hosted on REPORT or the router. A small `precog` CLI (`precog reboot 01`) to power-cycle any PRECOG by name when it freezes. Sub-projects: § Phone Provisioning Profiles, § Smart Plug Bus. Bespoke iOS/Android apps deferred further — off-the-shelf kiosk tooling covers the need at PRECRIME's current scale.
+- **Phone provisioning profiles** — Apple Configurator + Single App Mode for iPhone PRECOGs to lock them to NDI HX Camera and auto-relaunch the app on crash. Versioned profile saved in `precog/profiles/` so any new phone gets the same lockdown in ~10 minutes. Bespoke iOS/Android apps deferred further — off-the-shelf kiosk tooling covers the need at PRECRIME's current scale.
+
+  *Smart-plug bus (MQTT-controlled outlets for hardware power-cycle of frozen PRECOGs) considered and punted — not needed at current scale; operator can hand-touch a wedged phone during early shows.*
 
 ### Other deferrals
 
