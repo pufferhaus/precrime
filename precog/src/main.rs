@@ -103,7 +103,9 @@ fn build_pipeline_string(cfg: &PrecogConfig) -> String {
 /// thread silently dies and the daemon keeps running in a degraded state.
 fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let location = info.location().map(|l| format!("{}:{}", l.file(), l.line()));
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()));
         let payload = info
             .payload()
             .downcast_ref::<&str>()
