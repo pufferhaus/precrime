@@ -66,11 +66,9 @@ via dedicated encoder.
 │   └── kit-a-cctv-runbook.md
 ├── network/                    # router config exports, mDNS notes
 ├── hardware/                   # MEZZANINE controller firmware (Phase 2+)
-├── docs/
-│   └── superpowers/
-│       ├── specs/              # system-level design spec
-│       └── plans/              # implementation plans per sub-project
-└── .docs/                      # roadmap pattern (per personal CLAUDE.md)
+└── docs/
+    ├── specs/                  # system-level design spec
+    └── plans/                  # implementation plans per sub-project
 ```
 
 ## Build
@@ -106,12 +104,12 @@ the Pi.
 
 ## Documentation
 
-- **System design spec:** [`docs/superpowers/specs/2026-05-16-precrime-system-design.md`](docs/superpowers/specs/2026-05-16-precrime-system-design.md)
+- **System design spec:** [`docs/specs/2026-05-16-precrime-system-design.md`](docs/specs/2026-05-16-precrime-system-design.md)
 - **Implementation plans:**
-  - [Network Brain](docs/superpowers/plans/2026-05-16-network-brain.md) — Flint 3 router config, mDNS reflector
-  - [PRECOG Kit B (iPhone)](docs/superpowers/plans/2026-05-16-precog-kit-b-iphone.md) — NDI HX Camera setup
-  - [PRECOG Kit A (CCTV)](docs/superpowers/plans/2026-05-16-precog-kit-a-cctv.md) — Pi encoder for analog CCTV
-  - [REPORT switcher](docs/superpowers/plans/2026-05-16-report-switcher.md) — Rust daemon, dual HDMI
+  - [Network Brain](docs/plans/2026-05-16-network-brain.md) — Flint 3 router config, mDNS reflector
+  - [PRECOG Kit B (iPhone)](docs/plans/2026-05-16-precog-kit-b-iphone.md) — NDI HX Camera setup
+  - [PRECOG Kit A (CCTV)](docs/plans/2026-05-16-precog-kit-a-cctv.md) — Pi encoder for analog CCTV
+  - [REPORT switcher](docs/plans/2026-05-16-report-switcher.md) — Rust daemon, dual HDMI
 - **Operator runbooks** are colocated with each component (`report/runbook.md`, `precog/kit-a-cctv-runbook.md`).
 
 ## Hardware

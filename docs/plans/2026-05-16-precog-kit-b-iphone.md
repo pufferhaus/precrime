@@ -1,7 +1,5 @@
 # PRECOG Kit B (iPhone NDI Source) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Configure an iPhone 15 as `PRECOG-01-IPHONE-STAGE`, an NDI|HX2 source discoverable on the PRECRIME LAN via the NDI HX Camera app, validated end-to-end from a laptop running NDI Studio Monitor.
 
 **Architecture:** The iPhone is the camera, encoder, and NDI publisher all in one. The free NDI HX Camera app (NewTek) broadcasts the rear camera as an NDI source using the device's iOS hostname. Wiring, power, and remote control are addressed at the kit level so the iPhone runs unattended at a show.

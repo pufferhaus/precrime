@@ -1,7 +1,5 @@
 # REPORT (Switcher) Implementation Plan — Rust
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Build REPORT, a headless Rust binary that runs on a Pi 5, discovers N NDI sources named `PRECOG-NN-*` on the LAN, outputs a single operator-chosen source as program video on HDMI-A-1, and outputs a multiview preview with tally overlay on HDMI-A-2. Switching is driven by a USB keyboard for Phase 1 (MEZZANINE is a future USB HID device — no software change required).
 
 **Architecture:** A single Rust binary, member of a cargo workspace at the repo root. The binary owns two independent GStreamer pipelines, each rendering directly to a DRM/KMS connector via `kmssink` (no X11, no Wayland, no desktop env). NDI ingest uses the `ndisrc` element from `gstreamer1.0-plugins-rs` (apt-installed). NDI source *discovery* is done via a small FFI module around `libndi`'s `NDIlib_find_*` API, since `ndisrc` itself is for stream consumption, not enumeration. Keyboard input uses the `evdev` crate. Tally overlay is drawn in a `cairo` callback attached to the multiview compositor. The whole thing is wrapped in `systemd` with auto-restart.

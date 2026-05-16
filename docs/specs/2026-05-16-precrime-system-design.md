@@ -275,14 +275,9 @@ Output monitor and HDMI capture for Phase 1 borrow from existing gear.
 /Users/cody/Dev/precrime/
 ├── Cargo.toml                 # cargo workspace root (members: report, precog)
 ├── Cargo.lock
-├── .docs/
-│   ├── ROADMAP.md             # compact index (per global roadmap pattern)
-│   ├── ROADMAP-SPECS.md       # roadmap detail specs
-│   └── COMPLETED.md
 ├── docs/
-│   └── superpowers/
-│       ├── specs/
-│       └── plans/
+│   ├── specs/
+│   └── plans/
 ├── report/                    # REPORT switcher binary crate + deployment artifacts
 │   ├── Cargo.toml
 │   ├── src/                   # Rust source (main.rs, daemon.rs, pipeline.rs, ...)

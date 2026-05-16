@@ -10,7 +10,7 @@
 
 ## Hardware setup (filled in when Pi arrives)
 
-See `docs/superpowers/plans/2026-05-16-precog-kit-a-cctv.md` Tasks 1–5 for
+See `docs/plans/2026-05-16-precog-kit-a-cctv.md` Tasks 1–5 for
 Pi flash, dependency install, EasyCap probe, and M3/M4 verification steps.
 
 ## M4 verification

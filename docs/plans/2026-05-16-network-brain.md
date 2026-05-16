@@ -1,7 +1,5 @@
 # Network Brain Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Configure a GL.iNet Flint 2 router as the PRECRIME LAN, with mDNS reflector, IGMP snooping, no client isolation, and predictable DHCP — so that NDI auto-discovery works reliably across the network.
 
 **Architecture:** Flint 2 runs OpenWRT under GL.iNet's admin UI. Configuration is done via UCI (OpenWRT's CLI config system) over SSH for reproducibility, with the GL.iNet web UI used only for initial bring-up. Final config is exported to a USB stick so the router can be reflashed and restored in under 5 minutes if it fails on tour.

@@ -1,7 +1,5 @@
 # PRECOG Kit A (Pi NDI Encoder for Analog CCTV) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Build a Pi 5 + EasyCap-based NDI encoder that publishes a vintage analog CCTV camera's BNC composite feed as the NDI source `PRECOG-02-CCTV-DOOR` on the PRECRIME LAN.
 
 **Architecture:** The Pi runs Raspberry Pi OS Lite headless. A single GStreamer pipeline reads `/dev/video0` (the EasyCap USB capture device), encodes to NDI|HX2 via `ndisink` from the `gstreamer1.0-plugins-rs` package, and is wrapped in a `systemd` service with auto-restart. Configuration (NDI name, resolution, framerate) lives in `/etc/precog/precog.conf` and is interpolated into the pipeline at service start. No Python; a single shell launcher keeps the runtime tiny and debuggable.
