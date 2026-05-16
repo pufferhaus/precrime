@@ -307,16 +307,22 @@ Git initialized at the project root. Phase 1 work happens primarily in `report/`
 
 ## 11. Out of Scope (Phase 1)
 
-Explicitly deferred:
+Explicitly deferred. **Phase 2 immediate next** is the Remote Phone Control + Smart Plug Bus — to be tackled as soon as Phase 1 verifies end-to-end connectivity.
+
+### Phase 2 — immediate next
+
+- **Remote phone control + smart plug bus** — Apple Configurator + Single App Mode for iPhone PRECOGs to lock them to NDI HX Camera and auto-relaunch on crash. Tasmota/Shelly smart plugs per permanently-deployed PRECOG, controlled via a `mosquitto` MQTT broker hosted on REPORT or the router. A small `precog` CLI (`precog reboot 01`) to power-cycle any PRECOG by name when it freezes. Sub-projects: § Phone Provisioning Profiles, § Smart Plug Bus. Bespoke iOS/Android apps deferred further — off-the-shelf kiosk tooling covers the need at PRECRIME's current scale.
+
+### Other deferrals
 
 - MEZZANINE custom hardware controller (USB keyboard placeholder)
 - PRECOG Kits C (IP PoE) and D (HDMI source)
 - RTSP→NDI bridge service
-- iOS MDM / Apple Configurator integration
 - Recording-to-disk archive on REPORT
 - Multi-operator / remote control of REPORT
 - Software-applied CCTV aesthetic filters (scanlines, timestamp burn, downscale) — defer until at least one show has happened and the aesthetic call is informed
 - Pelican case / road case packout
-- Streaming output config (RTMP/SRT to Twitch/YouTube) — Phase 2
+- Streaming output config (RTMP/SRT to Twitch/YouTube)
+- Bespoke Android companion app (consider only if fleet grows past 4 Android units)
 
 Each of these gets a future brainstorm pass before any work begins.
