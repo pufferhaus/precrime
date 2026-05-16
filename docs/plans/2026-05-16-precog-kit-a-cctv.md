@@ -140,17 +140,24 @@
   # PRECOG Kit A installer — run on a fresh Pi OS Lite 64-bit with internet access
   set -e
 
-  echo "Installing GStreamer + Rust plugins + v4l-utils..."
+  echo "Installing GStreamer + Rust plugins + build deps + v4l-utils..."
   sudo apt update
   sudo apt install -y \
+      build-essential pkg-config curl \
+      libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
       gstreamer1.0-tools \
       gstreamer1.0-plugins-base \
       gstreamer1.0-plugins-good \
       gstreamer1.0-plugins-bad \
       gstreamer1.0-plugins-ugly \
       gstreamer1.0-plugins-rs \
-      v4l-utils \
-      curl
+      libudev-dev \
+      v4l-utils
+
+  if ! command -v rustc >/dev/null 2>&1; then
+      echo "Installing rustup + stable Rust..."
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+  fi
 
   echo ""
   echo "Next: manually install the NDI SDK runtime libndi.so per the runbook."
@@ -358,79 +365,204 @@ This task proves the entire NDI publishing pipeline works using GStreamer's buil
 
 ---
 
-### Task 6: Wrap the pipeline in a systemd service
+### Task 6: Build the precog Rust binary + wrap in systemd
+
+The precog binary is a small Rust program that reads a TOML config, constructs a v4l2→NDI GStreamer pipeline via `gstreamer-rs`, runs it, watches the bus, and exits non-zero on fatal errors (systemd restarts it).
 
 **Files:**
+- Create: `precog/Cargo.toml`
+- Create: `precog/src/main.rs`
+- Create: `precog/src/config.rs`
 - Create: `precog/precog.conf.example`
-- Create: `precog/precog-launcher.sh`
 - Create: `precog/precog.service`
 - Modify: `precog/kit-a-cctv-runbook.md`
+- Modify: workspace `Cargo.toml` to include `precog` (already done if Task 3 of REPORT plan ran first)
 
-- [ ] **Step 1: Create the example config file `precog/precog.conf.example`**
+- [ ] **Step 1: Create `precog/Cargo.toml`**
 
-  ```bash
-  # PRECOG runtime config. Copy to /etc/precog/precog.conf on each unit and edit per cam.
-  # Loaded by /usr/local/bin/precog-launcher.sh, which exports these as env vars to gst-launch.
+  ```toml
+  [package]
+  name = "precog"
+  version = "0.1.0"
+  edition.workspace = true
+  rust-version.workspace = true
+  license.workspace = true
+  authors.workspace = true
+  description = "PRECRIME PRECOG: analog CCTV → NDI encoder daemon"
 
-  PRECOG_NAME="PRECOG-02-CCTV-DOOR"
-  PRECOG_DEVICE="/dev/video0"
-  PRECOG_FORMAT="UYVY"
-  PRECOG_WIDTH="720"
-  PRECOG_HEIGHT="480"
-  PRECOG_FRAMERATE="30/1"
+  [dependencies]
+  anyhow = "1"
+  serde = { version = "1", features = ["derive"] }
+  toml = "0.8"
+  tracing = "0.1"
+  tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+  tracing-journald = "0.3"
+  gstreamer = "0.23"
 
-  # Pipeline variant: "with-combiner" or "video-only"
-  # Determined by Task 4 fallback in the kit-a plan.
-  PRECOG_PIPELINE_VARIANT="with-combiner"
+  [lints]
+  workspace = true
   ```
 
-- [ ] **Step 2: Create the launcher script `precog/precog-launcher.sh`**
+- [ ] **Step 2: Create `precog/src/config.rs`**
 
-  ```bash
-  #!/bin/sh
-  # PRECOG pipeline launcher. Reads /etc/precog/precog.conf and execs gst-launch-1.0.
-  set -e
+  ```rust
+  //! TOML config parsing for precog.
 
-  CONFIG=/etc/precog/precog.conf
-  if [ ! -f "$CONFIG" ]; then
-      echo "Missing $CONFIG" >&2
-      exit 1
-  fi
-  . "$CONFIG"
+  use serde::Deserialize;
 
-  : "${PRECOG_NAME:?must set PRECOG_NAME}"
-  : "${PRECOG_DEVICE:?must set PRECOG_DEVICE}"
-  : "${PRECOG_FORMAT:?must set PRECOG_FORMAT}"
-  : "${PRECOG_WIDTH:?must set PRECOG_WIDTH}"
-  : "${PRECOG_HEIGHT:?must set PRECOG_HEIGHT}"
-  : "${PRECOG_FRAMERATE:?must set PRECOG_FRAMERATE}"
+  #[derive(Debug, Deserialize)]
+  pub struct PrecogConfig {
+      /// NDI display name, e.g. "PRECOG-02-CCTV-DOOR".
+      pub ndi_name: String,
+      /// V4L2 device path, e.g. "/dev/video0".
+      pub device: String,
+      /// Pixel format string, e.g. "UYVY" or "YUYV".
+      pub format: String,
+      pub width: u32,
+      pub height: u32,
+      /// "30/1" for NTSC, "25/1" for PAL.
+      pub framerate: String,
+      /// Some installs of gst-plugin-rs need `ndisinkcombiner`; others go straight to `ndisink`.
+      /// Default true (with combiner).
+      #[serde(default = "default_combiner")]
+      pub use_combiner: bool,
+  }
 
-  CAPS="video/x-raw,format=${PRECOG_FORMAT},width=${PRECOG_WIDTH},height=${PRECOG_HEIGHT},framerate=${PRECOG_FRAMERATE}"
+  fn default_combiner() -> bool {
+      true
+  }
 
-  case "${PRECOG_PIPELINE_VARIANT:-with-combiner}" in
-      with-combiner)
-          exec gst-launch-1.0 \
-              v4l2src device="$PRECOG_DEVICE" \
-              ! "$CAPS" \
-              ! videoconvert \
-              ! ndisinkcombiner name=c \
-              c.src ! ndisink ndi-name="$PRECOG_NAME"
-          ;;
-      video-only)
-          exec gst-launch-1.0 \
-              v4l2src device="$PRECOG_DEVICE" \
-              ! "$CAPS" \
-              ! videoconvert \
-              ! ndisink ndi-name="$PRECOG_NAME"
-          ;;
-      *)
-          echo "Unknown PRECOG_PIPELINE_VARIANT: $PRECOG_PIPELINE_VARIANT" >&2
-          exit 2
-          ;;
-  esac
+  impl PrecogConfig {
+      pub fn from_toml(raw: &str) -> Result<Self, toml::de::Error> {
+          toml::from_str(raw)
+      }
+  }
   ```
 
-- [ ] **Step 3: Create the systemd unit `precog/precog.service`**
+- [ ] **Step 3: Create `precog/src/main.rs`**
+
+  ```rust
+  //! PRECOG — analog CCTV → NDI encoder daemon.
+
+  mod config;
+
+  use anyhow::{Context, Result};
+  use config::PrecogConfig;
+  use gstreamer::prelude::*;
+  use std::env;
+  use std::fs;
+  use tracing::{error, info, warn};
+
+  fn main() -> Result<()> {
+      init_tracing();
+
+      let config_path =
+          env::var("PRECOG_CONFIG").unwrap_or_else(|_| "/etc/precog/precog.conf".into());
+      let raw = fs::read_to_string(&config_path)
+          .with_context(|| format!("reading config from {config_path}"))?;
+      let cfg = PrecogConfig::from_toml(&raw)
+          .with_context(|| format!("parsing config from {config_path}"))?;
+
+      info!(?cfg, "PRECOG starting");
+
+      gstreamer::init()?;
+
+      let pipeline_str = build_pipeline_string(&cfg);
+      info!(pipeline = %pipeline_str, "pipeline");
+
+      let pipeline = gstreamer::parse::launch(&pipeline_str)
+          .context("parse pipeline")?
+          .downcast::<gstreamer::Pipeline>()
+          .map_err(|_| anyhow::anyhow!("downcast to Pipeline"))?;
+
+      pipeline.set_state(gstreamer::State::Playing)?;
+
+      let bus = pipeline.bus().context("pipeline bus")?;
+      for msg in bus.iter_timed(gstreamer::ClockTime::NONE) {
+          use gstreamer::MessageView;
+          match msg.view() {
+              MessageView::Eos(..) => {
+                  warn!("EOS received, exiting");
+                  break;
+              }
+              MessageView::Error(err) => {
+                  error!(
+                      src = ?err.src().map(|s| s.path_string()),
+                      error = %err.error(),
+                      debug = ?err.debug(),
+                      "pipeline error"
+                  );
+                  let _ = pipeline.set_state(gstreamer::State::Null);
+                  return Err(anyhow::anyhow!(err.error().to_string()));
+              }
+              _ => {}
+          }
+      }
+
+      let _ = pipeline.set_state(gstreamer::State::Null);
+      Ok(())
+  }
+
+  fn build_pipeline_string(cfg: &PrecogConfig) -> String {
+      let caps = format!(
+          "video/x-raw,format={fmt},width={w},height={h},framerate={fr}",
+          fmt = cfg.format,
+          w = cfg.width,
+          h = cfg.height,
+          fr = cfg.framerate
+      );
+      let name_escaped = cfg.ndi_name.replace('"', "");
+      if cfg.use_combiner {
+          format!(
+              r#"v4l2src device="{dev}" ! {caps} ! videoconvert ! ndisinkcombiner name=c c.src ! ndisink ndi-name="{name}""#,
+              dev = cfg.device,
+              caps = caps,
+              name = name_escaped,
+          )
+      } else {
+          format!(
+              r#"v4l2src device="{dev}" ! {caps} ! videoconvert ! ndisink ndi-name="{name}""#,
+              dev = cfg.device,
+              caps = caps,
+              name = name_escaped,
+          )
+      }
+  }
+
+  fn init_tracing() {
+      use tracing_subscriber::{fmt, EnvFilter};
+      let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+      match tracing_journald::layer() {
+          Ok(layer) => {
+              use tracing_subscriber::prelude::*;
+              tracing_subscriber::registry()
+                  .with(env_filter)
+                  .with(layer)
+                  .init();
+          }
+          Err(_) => {
+              fmt().with_env_filter(env_filter).init();
+          }
+      }
+  }
+  ```
+
+- [ ] **Step 4: Create `precog/precog.conf.example`**
+
+  ```toml
+  # /etc/precog/precog.conf — copy and edit per unit.
+
+  ndi_name  = "PRECOG-02-CCTV-DOOR"
+  device    = "/dev/video0"
+  format    = "UYVY"
+  width     = 720
+  height    = 480
+  framerate = "30/1"
+  # Set to false if `ndisinkcombiner` is unavailable in your gst-plugin-rs build (see kit-a plan Task 4).
+  use_combiner = true
+  ```
+
+- [ ] **Step 5: Create `precog/precog.service`**
 
   ```ini
   [Unit]
@@ -440,7 +572,9 @@ This task proves the entire NDI publishing pipeline works using GStreamer's buil
 
   [Service]
   Type=simple
-  ExecStart=/usr/local/bin/precog-launcher.sh
+  ExecStart=/usr/local/bin/precog
+  Environment=PRECOG_CONFIG=/etc/precog/precog.conf
+  Environment=RUST_LOG=info
   Restart=on-failure
   RestartSec=3
   StandardOutput=journal
@@ -451,66 +585,79 @@ This task proves the entire NDI publishing pipeline works using GStreamer's buil
   WantedBy=multi-user.target
   ```
 
-  Note: running as root because v4l2 + udev rules vary; if you prefer non-root, add the user to the `video` group on the Pi.
+  Note: running as root for v4l2 + udev. To run as a non-root user, add them to the `video` and `render` groups; defer this hardening to a future iteration.
 
-- [ ] **Step 4: Deploy these files to the Pi**
+- [ ] **Step 6: Build the binary on the PRECOG Pi**
 
-  From your laptop:
+  This Pi needs the same toolchain as REPORT — install rustup + GStreamer dev packages. Use the REPORT install.sh as a reference (it's identical for our purposes):
+
   ```bash
-  scp precog/precog.conf.example cody@precog-02-cctv-door.local:/tmp/
-  scp precog/precog-launcher.sh cody@precog-02-cctv-door.local:/tmp/
-  scp precog/precog.service cody@precog-02-cctv-door.local:/tmp/
-
+  rsync -av --delete --exclude target/ /Users/cody/Dev/precrime/ cody@precog-02-cctv-door.local:/home/cody/precrime/
   ssh cody@precog-02-cctv-door.local '
+      cd ~/precrime &&
+      ./report/install.sh &&
+      cargo build --release -p precog
+  '
+  ```
+
+  (NDI SDK runtime must also be installed on this Pi — see REPORT plan Task 2 Step 3 for the manual libndi.so install.)
+
+  Expected: `~/precrime/target/release/precog` exists.
+
+- [ ] **Step 7: Deploy binary, config, service**
+
+  ```bash
+  ssh cody@precog-02-cctv-door.local '
+      sudo cp ~/precrime/target/release/precog /usr/local/bin/precog &&
       sudo mkdir -p /etc/precog &&
-      sudo cp /tmp/precog.conf.example /etc/precog/precog.conf &&
-      sudo cp /tmp/precog-launcher.sh /usr/local/bin/precog-launcher.sh &&
-      sudo chmod +x /usr/local/bin/precog-launcher.sh &&
-      sudo cp /tmp/precog.service /etc/systemd/system/precog.service &&
+      sudo cp ~/precrime/precog/precog.conf.example /etc/precog/precog.conf &&
+      sudo cp ~/precrime/precog/precog.service /etc/systemd/system/precog.service &&
       sudo systemctl daemon-reload &&
       sudo systemctl enable precog.service &&
       sudo systemctl start precog.service
   '
   ```
 
-- [ ] **Step 5: Verify the service is running**
+  Edit `/etc/precog/precog.conf` on the Pi with the actual per-unit values (NDI name, NTSC vs PAL framerate, etc).
+
+- [ ] **Step 8: Verify the service is running**
 
   ```bash
   ssh cody@precog-02-cctv-door.local 'sudo systemctl status precog.service'
   ```
 
-  Expected: `active (running)` with recent log lines showing GStreamer pipeline output. If failed, check:
+  Expected: `active (running)`. If failed:
   ```bash
-  ssh cody@precog-02-cctv-door.local 'sudo journalctl -u precog.service -n 50 --no-pager'
+  ssh cody@precog-02-cctv-door.local 'sudo journalctl -u precog.service -n 80 --no-pager'
   ```
 
-- [ ] **Step 6: Verify the NDI source still appears in Studio Monitor**
+- [ ] **Step 9: Verify NDI source is live**
 
-  Same as Task 5 Step 4. Source should be live again without you running anything manually.
+  From the laptop, NDI Studio Monitor should show `PRECOG-02-CCTV-DOOR` with the live CCTV feed.
 
-- [ ] **Step 7: Verify it survives a reboot**
+- [ ] **Step 10: Reboot and verify boot survival**
 
   ```bash
   ssh cody@precog-02-cctv-door.local 'sudo reboot'
   ```
 
-  Wait ~45 seconds. Open NDI Studio Monitor on the laptop. Expected: `PRECOG-02-CCTV-DOOR` reappears within ~30 seconds of the Pi finishing boot. Stream is live.
+  Wait ~45 seconds. NDI source reappears in Studio Monitor.
 
-- [ ] **Step 8: Append boot-survival check to runbook**
+- [ ] **Step 11: Append boot-survival check to runbook**
 
   Append to `precog/kit-a-cctv-runbook.md`:
 
   ```markdown
   ## Boot-survival verification — YYYY-MM-DD
-  - `precog.service` enabled, autostarts at boot
+  - `precog.service` (Rust binary) enabled, autostarts at boot
   - Cold-boot → NDI source live: ~<observed seconds>
   ```
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 12: Commit**
 
   ```bash
-  git add precog/precog.conf.example precog/precog-launcher.sh precog/precog.service precog/kit-a-cctv-runbook.md
-  git commit -m "precog kit-a: systemd service + launcher + boot-survival verified"
+  git add precog/Cargo.toml precog/src/ precog/precog.conf.example precog/precog.service precog/kit-a-cctv-runbook.md
+  git commit -m "precog kit-a: Rust binary + systemd service + boot-survival verified"
   ```
 
 ---
@@ -558,15 +705,18 @@ This task proves the entire NDI publishing pipeline works using GStreamer's buil
 
 ```
 precog/
-├── install.sh               # Reproducible package install + NDI SDK pointer
+├── Cargo.toml               # Rust binary crate (workspace member)
+├── src/
+│   ├── main.rs              # entry point + pipeline build + bus watch
+│   └── config.rs            # TOML config
+├── install.sh               # Reproducible apt + rustup installer
 ├── precog.conf.example      # Template config for /etc/precog/precog.conf
-├── precog-launcher.sh       # Shell script that execs gst-launch-1.0 from config
-├── precog.service           # systemd unit
+├── precog.service           # systemd unit (execs /usr/local/bin/precog)
 ├── kit-a-cctv-runbook.md    # This kit's operator runbook
 └── kit-b-iphone-runbook.md  # (from Kit B plan)
 ```
 
-`precog-launcher.sh` and `precog.conf.example` are reusable for additional analog-CCTV PRECOGs — just change `PRECOG_NAME` and the hostname per unit.
+The Rust binary is the same for every analog-CCTV PRECOG — only `/etc/precog/precog.conf` differs per unit.
 
 ## Done means
 
