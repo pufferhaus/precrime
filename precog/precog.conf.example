@@ -1,0 +1,10 @@
+# /etc/precog/precog.conf — copy and edit per unit.
+
+ndi_name  = "PRECOG-02-CCTV-DOOR"
+device    = "/dev/video0"
+format    = "UYVY"
+width     = 720
+height    = 480
+framerate = "30/1"
+# Set to false if `ndisinkcombiner` is unavailable in your gst-plugin-rs build.
+use_combiner = true
