@@ -3,7 +3,7 @@ use report::titler::page::{parse_page, Rgba};
 use report::titler::render::render_page;
 
 #[test]
-fn render_produces_canvas_sized_surface() {
+fn render_produces_canvas_sized_buffer() {
     let toml = r##"
 schema = 1
 name = "t"
@@ -11,10 +11,11 @@ name = "t"
 canvas = { w = 320, h = 240 }
 "##;
     let page = parse_page(toml).unwrap();
-    let surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    assert_eq!(surface.width(), 320);
-    assert_eq!(surface.height(), 240);
+    assert_eq!(rendered.width, 320);
+    assert_eq!(rendered.height, 240);
+    assert_eq!(rendered.rgba.len(), rendered.stride as usize * 240);
 }
 
 #[test]
@@ -26,12 +27,14 @@ name = "t"
 canvas = { w = 16, h = 16 }
 "##;
     let page = parse_page(toml).unwrap();
-    let mut surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    let data = surface.data().unwrap();
     // ARGB32 layout in Cairo: little-endian 4 bytes per pixel (B, G, R, A).
     // All bytes must be zero on an unwritten surface.
-    assert!(data.iter().all(|b| *b == 0), "expected fully transparent surface");
+    assert!(
+        rendered.rgba.iter().all(|b| *b == 0),
+        "expected fully transparent buffer"
+    );
 }
 
 #[test]
@@ -50,10 +53,10 @@ color = "#FFFFFF"
 position = { x = 10, y = 40 }
 "##;
     let page = parse_page(toml).unwrap();
-    let mut surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    let stride = surface.stride() as usize;
-    let data = surface.data().unwrap();
+    let stride = rendered.stride as usize;
+    let data = &rendered.rgba;
     // Sample a 40x20 box around the expected baseline (10, 40).
     let mut any_nonzero_alpha = false;
     for y in 20..50 {
@@ -71,9 +74,9 @@ position = { x = 10, y = 40 }
 
 #[test]
 fn text_color_round_trips_through_render() {
-    // Render a magenta block of text and verify a non-transparent pixel has
-    // a roughly-magenta color (R high, G low, B high). Don't pin exact bytes —
-    // antialiasing makes intermediate values normal.
+    // Render a magenta glyph and verify the most opaque sampled pixel decodes
+    // back to a roughly-magenta color (R high, G low, B high). Premultiplied
+    // alpha is divided out before checking channels.
     let toml = r##"
 schema = 1
 name = "t"
@@ -88,11 +91,10 @@ color = "#FF00FF"
 position = { x = 30, y = 24 }
 "##;
     let page = parse_page(toml).unwrap();
-    let mut surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    let stride = surface.stride() as usize;
-    let data = surface.data().unwrap();
-    // Find the most opaque pixel in the central region.
+    let stride = rendered.stride as usize;
+    let data = &rendered.rgba;
     let mut best_alpha = 0u8;
     let mut best_rgba = Rgba(0, 0, 0, 0);
     for y in 0..32 {
@@ -101,12 +103,17 @@ position = { x = 30, y = 24 }
             let a = data[offset + 3];
             if a > best_alpha {
                 best_alpha = a;
-                // ARGB32 little-endian: bytes B G R A.
-                // Pre-multiplied alpha — divide by alpha to recover plain RGB.
+                // ARGB32 little-endian: bytes B G R A, premultiplied.
                 let b = data[offset];
                 let g = data[offset + 1];
                 let r = data[offset + 2];
-                best_rgba = Rgba(r, g, b, a);
+                let inv = 255.0 / a as f32;
+                best_rgba = Rgba(
+                    ((r as f32 * inv).min(255.0)) as u8,
+                    ((g as f32 * inv).min(255.0)) as u8,
+                    ((b as f32 * inv).min(255.0)) as u8,
+                    a,
+                );
             }
         }
     }
@@ -115,4 +122,10 @@ position = { x = 30, y = 24 }
     assert!(r > 150, "expected high red, got {r}");
     assert!(g < 80, "expected low green, got {g}");
     assert!(b > 150, "expected high blue, got {b}");
+}
+
+#[test]
+fn rendered_page_is_send_and_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<report::titler::render::RenderedPage>();
 }

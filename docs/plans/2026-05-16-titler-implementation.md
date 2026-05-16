@@ -1,6 +1,26 @@
 # Titler Implementation Plan
 
+> **STATUS — PAUSED 2026-05-16.** Titler is not a core-launch feature. Parked on branch `titler-t1` until REPORT core dev finishes. Do not merge to main yet. Resume by checking out `titler-t1` and starting at **T1 Task 3** (custom GStreamer element). See `## Resume Checklist` below before picking up.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+## Resume Checklist
+
+When picking this work back up:
+
+1. **Branch:** `git checkout titler-t1` — all T1 work lives here, isolated from main.
+2. **Re-baseline:** rebase onto current `main` and run `cargo build -p report && cargo test -p report` before touching anything. The REPORT crate will have moved.
+3. **State of T1:**
+   - ✅ Task 1 — module scaffold + TOML page parser (commit `84b0ac4`)
+   - ✅ Task 2 — Cairo render → `RenderedPage` (commit `13e5de8` + return-type refactor commit)
+   - ⏭ **Task 3 — `titleroverlay` GStreamer element** (next)
+   - ⏳ Tasks 4–7 — pipeline integration, daemon wiring, SIGHUP reload, Pi smoke test
+4. **Known carry-overs documented in the review:**
+   - Spec drift: `position = "bottom-left"` 9-anchor preset is in spec §5 but not in `schema = 1`. Decide whether to add to T3's schema bump or annotate spec.
+   - Cairo toy text on minimal Pi OS: Task 7 should `fc-match sans` before blaming the pipeline.
+5. **Type invariants locked in:** `RenderedPage: Send + Sync` is verified by `rendered_page_is_send_and_sync` compile-trait test in `report/tests/titler_render.rs`. Don't regress this — Task 3's `TitleSlot` depends on it.
+
+---
 
 **Goal:** Add a Videonics-style character generator / titler to PRECRIME's REPORT switcher. The titler renders title pages (text + images + transitions) and composites them as a burn-in overlay on the program output, controlled via the operator's existing USB keyboard with a mode toggle.
 
@@ -34,7 +54,7 @@ T1 scope deliberately excludes:
 |---|---|---|
 | `report/src/titler/mod.rs` | create | titler module entry, re-exports |
 | `report/src/titler/page.rs` | create | `Page` model, TOML parser, validation |
-| `report/src/titler/render.rs` | create | `render_page` — `Page` → cairo `ImageSurface` (RGBA) |
+| `report/src/titler/render.rs` | create | `render_page` — `Page` → `RenderedPage` (owned ARGB32 bytes + dims, Send+Sync) |
 | `report/src/titler/element.rs` | create | custom `BaseTransform` GStreamer element, registration |
 | `report/src/lib.rs` | modify | `pub mod titler` |
 | `report/src/config.rs` | modify | add `Option<TitlerConfig>` section |
@@ -347,7 +367,7 @@ git commit -m "feat(titler): add page model + TOML parser (T1 task 1)"
 - Create: `report/src/titler/render.rs`
 - Create: `report/tests/titler_render.rs`
 
-The renderer takes a `Page`, allocates a Cairo `ImageSurface` of the canvas dimensions, paints layers top-down, and returns the surface. T1 uses Cairo native `show_text` — no Pango. T3 swaps in Pango.
+The renderer takes a `Page`, paints layers into a Cairo `ImageSurface`, and returns the pixels as an owned `RenderedPage { rgba: Arc<Vec<u8>>, width, height, stride }`. `ImageSurface` is `!Send + !Sync`, so the daemon — which shares the rendered output with the GStreamer streaming thread via `TitleSlot` — must hand around bytes, not a raw surface. The element reconstructs an `ImageSurface` from these bytes via `ImageSurface::create_for_data_unsafe` inside `transform_ip`. T1 uses Cairo native `show_text` — no Pango. T3 swaps in Pango.
 
 - [ ] **Step 1: Write failing render test**
 
@@ -359,7 +379,7 @@ use report::titler::page::{parse_page, Rgba};
 use report::titler::render::render_page;
 
 #[test]
-fn render_produces_canvas_sized_surface() {
+fn render_produces_canvas_sized_buffer() {
     let toml = r#"
 schema = 1
 name = "t"
@@ -367,10 +387,11 @@ name = "t"
 canvas = { w = 320, h = 240 }
 "#;
     let page = parse_page(toml).unwrap();
-    let surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    assert_eq!(surface.width(), 320);
-    assert_eq!(surface.height(), 240);
+    assert_eq!(rendered.width, 320);
+    assert_eq!(rendered.height, 240);
+    assert_eq!(rendered.rgba.len(), rendered.stride as usize * 240);
 }
 
 #[test]
@@ -382,12 +403,10 @@ name = "t"
 canvas = { w = 16, h = 16 }
 "#;
     let page = parse_page(toml).unwrap();
-    let surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    let data = surface.data().unwrap();
     // ARGB32 layout in Cairo: little-endian 4 bytes per pixel (B, G, R, A).
-    // All bytes must be zero on an unwritten surface.
-    assert!(data.iter().all(|b| *b == 0), "expected fully transparent surface");
+    assert!(rendered.rgba.iter().all(|b| *b == 0), "expected fully transparent buffer");
 }
 
 #[test]
@@ -406,20 +425,16 @@ color = "#FFFFFF"
 position = { x = 10, y = 40 }
 "#;
     let page = parse_page(toml).unwrap();
-    let surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    let stride = surface.stride() as usize;
-    let data = surface.data().unwrap();
-    // Sample a 40x20 box around the expected baseline (10, 40).
+    let stride = rendered.stride as usize;
+    let data = &rendered.rgba;
     let mut any_nonzero_alpha = false;
     for y in 20..50 {
         for x in 10..80 {
             let offset = y * stride + x * 4;
-            let a = data[offset + 3]; // ARGB32 alpha is highest byte → byte 3 little-endian
-            if a > 0 {
-                any_nonzero_alpha = true;
-                break;
-            }
+            let a = data[offset + 3];
+            if a > 0 { any_nonzero_alpha = true; break; }
         }
     }
     assert!(any_nonzero_alpha, "expected some text pixels in the sample region");
@@ -427,9 +442,8 @@ position = { x = 10, y = 40 }
 
 #[test]
 fn text_color_round_trips_through_render() {
-    // Render a magenta block of text and verify a non-transparent pixel has
-    // a roughly-magenta color (R high, G low, B high). Don't pin exact bytes —
-    // antialiasing makes intermediate values normal.
+    // Render a magenta glyph and verify the most opaque sampled pixel decodes
+    // back to a roughly-magenta color after un-premultiplying alpha.
     let toml = r#"
 schema = 1
 name = "t"
@@ -444,11 +458,10 @@ color = "#FF00FF"
 position = { x = 30, y = 24 }
 "#;
     let page = parse_page(toml).unwrap();
-    let surface = render_page(&page).expect("render");
+    let rendered = render_page(&page).expect("render");
 
-    let stride = surface.stride() as usize;
-    let data = surface.data().unwrap();
-    // Find the most opaque pixel in the central region.
+    let stride = rendered.stride as usize;
+    let data = &rendered.rgba;
     let mut best_alpha = 0u8;
     let mut best_rgba = Rgba(0, 0, 0, 0);
     for y in 0..32 {
@@ -457,12 +470,16 @@ position = { x = 30, y = 24 }
             let a = data[offset + 3];
             if a > best_alpha {
                 best_alpha = a;
-                // ARGB32 little-endian: bytes B G R A.
-                // Pre-multiplied alpha — divide by alpha to recover plain RGB.
                 let b = data[offset];
                 let g = data[offset + 1];
                 let r = data[offset + 2];
-                best_rgba = Rgba(r, g, b, a);
+                let inv = 255.0 / a as f32;
+                best_rgba = Rgba(
+                    ((r as f32 * inv).min(255.0)) as u8,
+                    ((g as f32 * inv).min(255.0)) as u8,
+                    ((b as f32 * inv).min(255.0)) as u8,
+                    a,
+                );
             }
         }
     }
@@ -471,6 +488,12 @@ position = { x = 30, y = 24 }
     assert!(r > 150, "expected high red, got {r}");
     assert!(g < 80, "expected low green, got {g}");
     assert!(b > 150, "expected high blue, got {b}");
+}
+
+#[test]
+fn rendered_page_is_send_and_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<report::titler::render::RenderedPage>();
 }
 ```
 
@@ -484,28 +507,49 @@ Expected: compile error — `report::titler::render` not found.
 - [ ] **Step 3: Implement `report/src/titler/render.rs`**
 
 ```rust
-//! Render a `Page` into a Cairo `ImageSurface` (ARGB32 RGBA buffer).
+//! Render a `Page` into an owned ARGB32 RGBA buffer.
+//!
+//! Returns [`RenderedPage`] — bytes + dimensions — rather than a raw
+//! `cairo::ImageSurface` because `ImageSurface` is `!Send + !Sync` and the
+//! daemon shares the rendered output with the GStreamer streaming thread.
+//! The element reconstructs an `ImageSurface` from these bytes via
+//! `ImageSurface::create_for_data_unsafe` when compositing.
 //!
 //! T1 uses cairo native text. T3 will swap to Pango for proper font handling.
 
 use crate::titler::page::{Layer, Page, Rgba, TextLayer};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use cairo::{Format, ImageSurface};
+use std::sync::Arc;
 
-/// Render the page to a freshly-allocated ARGB32 `ImageSurface`.
-/// Surface dimensions match `page.canvas`. Caller owns the returned surface.
-pub fn render_page(page: &Page) -> Result<ImageSurface> {
+/// Owned, thread-safe render output. `rgba` is ARGB32 little-endian
+/// (bytes B, G, R, A) with premultiplied alpha — Cairo's native layout.
+#[derive(Debug, Clone)]
+pub struct RenderedPage {
+    pub rgba: Arc<Vec<u8>>,
+    pub width: u32,
+    pub height: u32,
+    pub stride: i32,
+}
+
+pub fn render_page(page: &Page) -> Result<RenderedPage> {
     let (w, h) = page.canvas;
+    let stride = Format::ARgb32
+        .stride_for_width(w)
+        .map_err(|e| anyhow!("cairo stride_for_width({w}): {e:?}"))?;
     let surface = ImageSurface::create(Format::ARgb32, w as i32, h as i32)
         .context("allocate cairo ARgb32 surface for page")?;
     {
         let ctx = cairo::Context::new(&surface).context("cairo context")?;
-        // Transparent default — nothing drawn yet.
         for layer in &page.layers {
             draw_layer(&ctx, layer).context("draw layer")?;
         }
     }
-    Ok(surface)
+    let rgba = surface
+        .take_data()
+        .map_err(|e| anyhow!("cairo take_data: {e:?}"))?
+        .to_vec();
+    Ok(RenderedPage { rgba: Arc::new(rgba), width: w, height: h, stride })
 }
 
 fn draw_layer(ctx: &cairo::Context, layer: &Layer) -> Result<()> {
@@ -578,13 +622,18 @@ Expected: clean build, only existing warnings.
 //!
 //! Subclasses `BaseTransform`. Accepts BGRx / BGRA video and composites a
 //! held RGBA title image over each frame in-place. The title image is owned
-//! by the daemon and pushed to the element via `set_title_image`; if no title
-//! is set, the element acts as a passthrough.
+//! by the daemon and pushed to the element via `TitleSlot`; if no title is
+//! set, the element acts as a passthrough.
+//!
+//! The slot holds [`RenderedPage`] bytes (Send + Sync) rather than a raw
+//! `ImageSurface` (which is `!Send + !Sync`). On each frame the element wraps
+//! both the held bytes and the video buffer in temporary `ImageSurface`s via
+//! `create_for_data_unsafe`, then runs the Cairo blend.
 //!
 //! T1: CPU Cairo blend. T4: replace with GL via `glupload`/`gldownload` siblings.
 
 use anyhow::Result;
-use cairo::ImageSurface;
+use crate::titler::render::RenderedPage;
 use glib::subclass::prelude::*;
 use glib::Properties;
 use gst::glib;
@@ -595,12 +644,12 @@ use gst_video::VideoFormat;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// Public handle: shared mutable slot for the current title image.
+/// Public handle: shared mutable slot for the current rendered title.
 /// The daemon holds a clone of this and updates it via `set`; the element
 /// reads from it on each frame.
 #[derive(Clone, Default)]
 pub struct TitleSlot {
-    inner: Arc<Mutex<Option<ImageSurface>>>,
+    inner: Arc<Mutex<Option<RenderedPage>>>,
 }
 
 impl TitleSlot {
@@ -609,11 +658,11 @@ impl TitleSlot {
     }
 
     /// Replace the title image. `None` disables overlay (passthrough).
-    pub fn set(&self, image: Option<ImageSurface>) {
-        *self.inner.lock() = image;
+    pub fn set(&self, page: Option<RenderedPage>) {
+        *self.inner.lock() = page;
     }
 
-    fn get(&self) -> Option<ImageSurface> {
+    fn get(&self) -> Option<RenderedPage> {
         self.inner.lock().clone()
     }
 }
@@ -737,9 +786,19 @@ mod imp {
             let height = info.height() as usize;
             let data = frame.plane_data_mut(0).map_err(|_| gst::FlowError::Error)?;
 
-            // Composite via a temporary Cairo surface wrapping the video buffer.
-            // Both buffer and title are BGRA / pre-multiplied ARGB32 — Cairo
-            // treats them identically.
+            // Wrap both the title bytes and the video buffer as temporary Cairo
+            // surfaces. Both are BGRA / pre-multiplied ARGB32 — Cairo treats
+            // them identically. The title `Arc<Vec<u8>>` outlives the surface
+            // borrow because we hold `title` for the entire scope.
+            let title_surface = unsafe {
+                cairo::ImageSurface::create_for_data_unsafe(
+                    title.rgba.as_ptr() as *mut u8,
+                    cairo::Format::ARgb32,
+                    title.width as i32,
+                    title.height as i32,
+                    title.stride,
+                ).map_err(|_| gst::FlowError::Error)?
+            };
             let video_surface = unsafe {
                 cairo::ImageSurface::create_for_data_unsafe(
                     data.as_mut_ptr(),
@@ -750,7 +809,7 @@ mod imp {
                 ).map_err(|_| gst::FlowError::Error)?
             };
             let ctx = cairo::Context::new(&video_surface).map_err(|_| gst::FlowError::Error)?;
-            ctx.set_source_surface(&title, 0.0, 0.0).map_err(|_| gst::FlowError::Error)?;
+            ctx.set_source_surface(&title_surface, 0.0, 0.0).map_err(|_| gst::FlowError::Error)?;
             ctx.paint().map_err(|_| gst::FlowError::Error)?;
 
             Ok(gst::FlowSuccess::Ok)
@@ -1046,9 +1105,9 @@ fn load_initial_title(&self) -> Result<Option<crate::titler::element::TitleSlot>
     let raw = std::fs::read_to_string(&path)
         .with_context(|| format!("read initial title page: {}", path.display()))?;
     let page = parse_page(&raw).context("parse initial title page")?;
-    let surface = render_page(&page).context("render initial title page")?;
+    let rendered = render_page(&page).context("render initial title page")?;
     let slot = TitleSlot::new();
-    slot.set(Some(surface));
+    slot.set(Some(rendered));
     info!(page = %t.initial_page, "loaded initial title page");
     Ok(Some(slot))
 }
@@ -1198,10 +1257,10 @@ fn reload_title(&self) -> Result<()> {
     let raw = std::fs::read_to_string(&path)
         .with_context(|| format!("read title page: {}", path.display()))?;
     let page = parse_page(&raw).context("parse title page")?;
-    let surface = render_page(&page).context("render title page")?;
+    let rendered = render_page(&page).context("render title page")?;
     let slot = self.state.lock().title_slot.as_ref().cloned();
     if let Some(slot) = slot {
-        slot.set(Some(surface));
+        slot.set(Some(rendered));
     }
     Ok(())
 }
@@ -1325,7 +1384,7 @@ git tag titler-t1
 
 - **Pipeline B (preview) is torn down on flip to Titler mode**; rebuild on flip back. T2 needs to measure rebuild latency (spec §8 open question).
 - **Two-layer keyboard:** `report::input` adds a `Mode` parameter to its dispatch. `Enter`/`Esc`/`[`/`]`/`F12` are show-ops (always active); arrow keys are edit-only.
-- **Title slot extended:** `TitleSlot` now holds `Option<(ImageSurface, f32 alpha)>`. Element samples alpha when blending (uniform scale factor on the Cairo paint operation).
+- **Title slot extended:** `TitleSlot` now holds `Option<(RenderedPage, f32 alpha)>`. Element samples alpha when blending (uniform scale factor on the Cairo paint operation).
 - **Cut + fade only:** transition state machine produces `(image_a, image_b, phase, type)` — for T2, only `type=cut | fade_in | fade_out`. T4 adds wipes/dissolves.
 
 ### Risks
@@ -1468,9 +1527,12 @@ git tag titler-t1
 **Placeholder scan:** no TBD/TODO. Every T1 step has actual code or commands.
 
 **Type consistency:**
+- `RenderedPage` defined in Task 2 (render.rs), held by `TitleSlot` in Task 3 (element.rs), produced by daemon in Task 5/6 — names + types match.
 - `TitleSlot` defined in Task 3 (element.rs), referenced in Task 5 (daemon.rs) — names match.
 - `parse_page` / `render_page` / `register` / `install_slot` — all referenced names are defined in earlier tasks.
 - `program_pipeline_string_with_titler` defined Task 4, no other callers.
+
+**Why `RenderedPage` instead of `ImageSurface`:** cairo-rs's `ImageSurface` is `!Send + !Sync` (wraps `NonNull<cairo_surface_t>`). The slot is shared between the daemon thread and the GStreamer streaming thread, so it must hold a `Send + Sync` value. `RenderedPage` stores the rendered bytes in `Arc<Vec<u8>>`; the element wraps both the title bytes and the video buffer as temporary `ImageSurface`s via `create_for_data_unsafe` inside `transform_ip`. A `rendered_page_is_send_and_sync` compile-trait test in `report/tests/titler_render.rs` locks the invariant.
 
 **Known gaps for the executor:**
 - The existing `build_program` signature is changing (added bool arg). Task 4 Step 4 explicitly updates the one known caller in `daemon.rs`; if a workspace search reveals additional callers later, update them with `false` initially.

@@ -1,25 +1,52 @@
-//! Render a `Page` into a Cairo `ImageSurface` (ARGB32 RGBA buffer).
+//! Render a `Page` into an owned ARGB32 RGBA buffer.
+//!
+//! Returns [`RenderedPage`] — bytes + dimensions — rather than a raw
+//! `cairo::ImageSurface` because `ImageSurface` is `!Send + !Sync` and the
+//! daemon shares the rendered output with the GStreamer streaming thread.
+//! The element reconstructs an `ImageSurface` from these bytes in-place via
+//! `ImageSurface::create_for_data_unsafe` when compositing.
 //!
 //! T1 uses cairo native text. T3 will swap to Pango for proper font handling.
 
 use crate::titler::page::{Layer, Page, Rgba, TextLayer};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use cairo::{Format, ImageSurface};
+use std::sync::Arc;
 
-/// Render the page to a freshly-allocated ARGB32 `ImageSurface`.
-/// Surface dimensions match `page.canvas`. Caller owns the returned surface.
-pub fn render_page(page: &Page) -> Result<ImageSurface> {
+/// Owned, thread-safe render output. `rgba` is ARGB32 little-endian
+/// (bytes B, G, R, A) with premultiplied alpha — Cairo's native layout.
+#[derive(Debug, Clone)]
+pub struct RenderedPage {
+    pub rgba: Arc<Vec<u8>>,
+    pub width: u32,
+    pub height: u32,
+    pub stride: i32,
+}
+
+/// Render the page and return its pixels as an owned, shareable buffer.
+pub fn render_page(page: &Page) -> Result<RenderedPage> {
     let (w, h) = page.canvas;
+    let stride = Format::ARgb32
+        .stride_for_width(w)
+        .map_err(|e| anyhow!("cairo stride_for_width({w}): {e:?}"))?;
     let surface = ImageSurface::create(Format::ARgb32, w as i32, h as i32)
         .context("allocate cairo ARgb32 surface for page")?;
     {
         let ctx = cairo::Context::new(&surface).context("cairo context")?;
-        // Transparent default — nothing drawn yet.
         for layer in &page.layers {
             draw_layer(&ctx, layer).context("draw layer")?;
         }
     }
-    Ok(surface)
+    let rgba = surface
+        .take_data()
+        .map_err(|e| anyhow!("cairo take_data: {e:?}"))?
+        .to_vec();
+    Ok(RenderedPage {
+        rgba: Arc::new(rgba),
+        width: w,
+        height: h,
+        stride,
+    })
 }
 
 fn draw_layer(ctx: &cairo::Context, layer: &Layer) -> Result<()> {
