@@ -73,34 +73,44 @@ via dedicated encoder.
 
 ## Build
 
-Workspace builds with stock Rust + GStreamer system libs.
+Build happens on the Pi via SSH; no local cross-compile setup. Drive everything
+from the Makefile at the repo root.
 
-**On a Pi 5 (target):**
+**First-time install on a Pi:**
 
 ```bash
-# Once
-./report/install.sh   # apt deps + rustup
-# Manually install NDI SDK libndi.so per runbook
-
-# Per build
-cargo build --release
+make install-report REPORT_HOST=report.local
+# then SSH in and install NDI SDK libndi.so per docs/plans/2026-05-16-report-switcher.md Task 2
+# edit /etc/precrime/report.conf (connector IDs, keyboard device)
+make deploy-report   REPORT_HOST=report.local
 ```
 
-Output: `target/release/report` and `target/release/precog`.
+Same shape for PRECOG units:
 
-Deploy to `/usr/local/bin/` and enable the systemd units (see `report/runbook.md`
-and `precog/kit-a-cctv-runbook.md`).
+```bash
+make install-precog PRECOG_HOST=precog-02-cctv-door.local
+# edit /etc/precog/precog.conf on the Pi (NDI name, format, framerate)
+make deploy-precog  PRECOG_HOST=precog-02-cctv-door.local
+```
+
+**Iterate:**
+
+```bash
+make deploy-report   # rsync + cargo build --release + restart service
+make logs-report     # tail journalctl -u report.service -f
+make restart-report  # restart only, no rebuild
+```
+
+`make help` lists every target. All targets take `REPORT_HOST=...` or
+`PRECOG_HOST=...` overrides.
 
 **On macOS (dev only):**
 
 ```bash
 brew install gstreamer
-cargo check                           # whole workspace
-cargo test -p report --lib            # pure-Rust modules (config, mapping, naming)
+make check    # cargo check whole workspace
+make test     # cargo test (pure-Rust modules only; libndi/GStreamer link blocked on macOS)
 ```
-
-Tests that touch libndi or GStreamer plugins can't link on macOS — verified on
-the Pi.
 
 ## Documentation
 
