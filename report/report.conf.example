@@ -1,0 +1,11 @@
+# /etc/precrime/report.conf — copy and edit per deployment.
+
+program_connector_id = 32   # set per report-switcher plan Task 2 Step 5 output
+preview_connector_id = 34
+keyboard_device = "/dev/input/event0"
+
+# Optional: pin specific PRECOG names to specific number keys.
+# Sources not listed here fall into the remaining slots alphabetically.
+# [source_slot_overrides]
+# "PRECOG-01-IPHONE-STAGE" = 1
+# "PRECOG-02-CCTV-DOOR" = 2

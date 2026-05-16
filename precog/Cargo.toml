@@ -1,0 +1,20 @@
+[package]
+name = "precog"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "PRECRIME PRECOG: analog CCTV → NDI encoder daemon"
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-journald = "0.3"
+gstreamer = "0.23"
+
+[lints]
+workspace = true

@@ -65,11 +65,18 @@ REPORT is the most complex Phase 1 sub-project. Detailed here because its decisi
 
 ### Runtime
 
-- GStreamer 1.22+
-- `gst-plugin-ndi` (Teltek, open source) for NDI source elements
-- `libndi` (NewTek SDK, free with EULA acceptance) for source discovery
-- Python 3 control daemon using `python-evdev` (keyboard) and `python-gst-1.0` (pipeline control)
-- `systemd` service: `report.service` autostarts at boot
+- GStreamer 1.22+ (system-installed via apt)
+- `gst-plugin-rs` (Rust GStreamer plugins, ships `ndisrc`/`ndisink` via apt as `gstreamer1.0-plugins-rs`)
+- `libndi` (NewTek SDK, free with EULA acceptance) — loaded by `gst-plugin-rs` for stream transport, and via direct FFI from the report binary for `NDIlib_find_*` discovery
+- **Single Rust binary** `report` (cargo workspace member) using:
+  - `gstreamer`, `gstreamer-app`, `gstreamer-video` crates for pipeline construction
+  - `evdev` crate for USB keyboard input
+  - `cairo-rs` for the tally overlay draw callback
+  - `serde` + `toml` for config parsing
+  - `tracing` + `tracing-journald` for logging (lands cleanly in `journalctl`)
+  - `anyhow` for error handling, `thiserror` for typed error boundaries
+  - Small FFI module wrapping libndi's Find API for source discovery
+- `systemd` service: `report.service` execs `/usr/local/bin/report` directly, autostarts at boot
 
 ### Pipelines
 
@@ -133,10 +140,15 @@ REPORT runs two independent GStreamer pipelines targeting the Pi 5's two HDMI co
 ### Software
 
 - Raspberry Pi OS Lite 64-bit
-- `ffmpeg` with libndi support, OR `gstreamer` with `ndisink` + `v4l2src` (final choice deferred to PRECOG Kit A spec)
-- `systemd` service: `precog.service` reads `/dev/video0`, encodes h.264, publishes NDI|HX2 source
-- Hostname set to `PRECOG-NN-CCTV-<LOC>` (broadcast as NDI name via configuration)
-- Config in `/etc/precog/precog.conf`: cam name, location tag, resolution, framerate, optional cropping/scaling
+- GStreamer 1.22+ with `gstreamer1.0-plugins-rs` (provides `ndisink`)
+- **Single Rust binary** `precog` (cargo workspace member) that:
+  - Reads `/etc/precog/precog.conf` (TOML)
+  - Builds a `v4l2src → caps → videoconvert → ndisinkcombiner → ndisink` GStreamer pipeline via `gstreamer-rs`
+  - Watches the GStreamer bus for errors and logs via `tracing`
+  - Exits non-zero on fatal pipeline failure; `systemd` restarts
+- `systemd` service: `precog.service` execs `/usr/local/bin/precog` directly, autostarts at boot
+- NDI source name set per `/etc/precog/precog.conf` (typically `PRECOG-NN-CCTV-<LOC>`)
+- Same binary used for any analog-CCTV PRECOG — only the config file differs per unit
 
 ### Boot
 
@@ -261,35 +273,56 @@ Output monitor and HDMI capture for Phase 1 borrow from existing gear.
 
 ```
 /Users/cody/Dev/precrime/
+├── Cargo.toml                 # cargo workspace root (members: report, precog)
+├── Cargo.lock
 ├── .docs/
 │   ├── ROADMAP.md             # compact index (per global roadmap pattern)
 │   ├── ROADMAP-SPECS.md       # roadmap detail specs
 │   └── COMPLETED.md
 ├── docs/
 │   └── superpowers/
-│       └── specs/
-│           └── 2026-05-16-precrime-system-design.md   # this document
-├── precog/                    # PRECOG kit code, configs, systemd units
-├── report/                    # REPORT switcher (Python + GStreamer)
+│       ├── specs/
+│       └── plans/
+├── report/                    # REPORT switcher binary crate + deployment artifacts
+│   ├── Cargo.toml
+│   ├── src/                   # Rust source (main.rs, daemon.rs, pipeline.rs, ...)
+│   ├── tests/                 # integration tests for pure-Rust modules
+│   ├── report.conf.example    # /etc/precrime/report.conf template
+│   ├── report.service         # systemd unit
+│   ├── install.sh             # apt deps + libndi + rustup installer (run on Pi)
+│   └── runbook.md
+├── precog/                    # PRECOG encoder binary crate + deployment artifacts
+│   ├── Cargo.toml
+│   ├── src/
+│   ├── precog.conf.example
+│   ├── precog.service
+│   ├── install.sh
+│   └── kit-a-cctv-runbook.md
 ├── network/                   # Router config exports, mDNS notes, deployment runbooks
 ├── hardware/                  # MEZZANINE controller firmware (Phase 2+)
 └── README.md
 ```
 
-Git initialized at the project root. Phase 1 work happens primarily in `precog/`, `report/`, and `network/`.
+Git initialized at the project root. Phase 1 work happens primarily in `report/`, `precog/`, and `network/`. Build with `cargo build --release` from the workspace root; deploy binaries via `scp target/release/{report,precog} <host>:/usr/local/bin/`.
 
 ## 11. Out of Scope (Phase 1)
 
-Explicitly deferred:
+Explicitly deferred. **Phase 2 immediate next** is the Remote Phone Control + Smart Plug Bus — to be tackled as soon as Phase 1 verifies end-to-end connectivity.
+
+### Phase 2 — immediate next
+
+- **Remote phone control + smart plug bus** — Apple Configurator + Single App Mode for iPhone PRECOGs to lock them to NDI HX Camera and auto-relaunch on crash. Tasmota/Shelly smart plugs per permanently-deployed PRECOG, controlled via a `mosquitto` MQTT broker hosted on REPORT or the router. A small `precog` CLI (`precog reboot 01`) to power-cycle any PRECOG by name when it freezes. Sub-projects: § Phone Provisioning Profiles, § Smart Plug Bus. Bespoke iOS/Android apps deferred further — off-the-shelf kiosk tooling covers the need at PRECRIME's current scale.
+
+### Other deferrals
 
 - MEZZANINE custom hardware controller (USB keyboard placeholder)
 - PRECOG Kits C (IP PoE) and D (HDMI source)
 - RTSP→NDI bridge service
-- iOS MDM / Apple Configurator integration
 - Recording-to-disk archive on REPORT
 - Multi-operator / remote control of REPORT
 - Software-applied CCTV aesthetic filters (scanlines, timestamp burn, downscale) — defer until at least one show has happened and the aesthetic call is informed
 - Pelican case / road case packout
-- Streaming output config (RTMP/SRT to Twitch/YouTube) — Phase 2
+- Streaming output config (RTMP/SRT to Twitch/YouTube)
+- Bespoke Android companion app (consider only if fleet grows past 4 Android units)
 
 Each of these gets a future brainstorm pass before any work begins.
