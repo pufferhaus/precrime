@@ -4,5 +4,5 @@
 //! `titleroverlay` GStreamer element which composites over program video.
 
 pub mod page;
-// pub mod render;   // added in Task 2
+pub mod render;
 // pub mod element;  // added in Task 3
