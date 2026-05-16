@@ -9,6 +9,7 @@ use anyhow::Result;
 use gstreamer::prelude::*;
 use parking_lot::Mutex;
 use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::Duration;
@@ -46,9 +47,15 @@ impl Daemon {
     }
 
     /// Run the daemon. Blocks the calling thread; sets up discovery + keyboard
-    /// + per-pipeline bus-watch threads.
+    /// + per-pipeline bus-watch threads. Returns Ok(()) on clean shutdown
+    /// (SIGTERM/SIGINT).
     pub fn run(self) -> Result<()> {
         gstreamer::init()?;
+
+        // Shutdown flag flipped by SIGTERM/SIGINT handlers.
+        let shutdown = Arc::new(AtomicBool::new(false));
+        signal_hook::flag::register(signal_hook::consts::SIGTERM, shutdown.clone())?;
+        signal_hook::flag::register(signal_hook::consts::SIGINT, shutdown.clone())?;
 
         let (src_tx, src_rx) = channel::<Vec<String>>();
         let (key_tx, key_rx) = channel::<u8>();
@@ -85,7 +92,7 @@ impl Daemon {
                 }
             })?;
 
-        self.event_loop(src_rx, key_rx, bus_rx, bus_tx)
+        self.event_loop(src_rx, key_rx, bus_rx, bus_tx, shutdown)
     }
 
     fn event_loop(
@@ -94,8 +101,9 @@ impl Daemon {
         key_rx: Receiver<u8>,
         bus_rx: Receiver<BusEvent>,
         bus_tx: Sender<BusEvent>,
+        shutdown: Arc<AtomicBool>,
     ) -> Result<()> {
-        loop {
+        while !shutdown.load(Ordering::Relaxed) {
             if let Ok(names) = src_rx.recv_timeout(Duration::from_millis(50)) {
                 self.on_sources_changed(&names, &bus_tx)?;
             }
@@ -113,6 +121,16 @@ impl Daemon {
                 }
             }
         }
+
+        info!("shutdown signal received — tearing down pipelines");
+        let mut st = self.state.lock();
+        if let Some(p) = st.program.take() {
+            let _ = p.pipeline.set_state(gstreamer::State::Null);
+        }
+        if let Some(p) = st.preview.take() {
+            let _ = p.pipeline.set_state(gstreamer::State::Null);
+        }
+        Ok(())
     }
 
     fn on_sources_changed(&self, raw_sources: &[String], bus_tx: &Sender<BusEvent>) -> Result<()> {

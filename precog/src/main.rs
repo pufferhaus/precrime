@@ -7,6 +7,8 @@ use config::PrecogConfig;
 use gstreamer::prelude::*;
 use std::env;
 use std::fs;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tracing::{error, info, warn};
 
 fn main() -> Result<()> {
@@ -33,8 +35,16 @@ fn main() -> Result<()> {
 
     pipeline.set_state(gstreamer::State::Playing)?;
 
+    // Shutdown flag flipped by SIGTERM/SIGINT handlers.
+    let shutdown = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, shutdown.clone())?;
+    signal_hook::flag::register(signal_hook::consts::SIGINT, shutdown.clone())?;
+
     let bus = pipeline.bus().context("pipeline bus")?;
-    for msg in bus.iter_timed(gstreamer::ClockTime::NONE) {
+    while !shutdown.load(Ordering::Relaxed) {
+        let Some(msg) = bus.timed_pop(gstreamer::ClockTime::from_mseconds(500)) else {
+            continue;
+        };
         use gstreamer::MessageView;
         match msg.view() {
             MessageView::Eos(..) => {
@@ -56,6 +66,7 @@ fn main() -> Result<()> {
         }
     }
 
+    info!("shutdown signal received — tearing down pipeline");
     let _ = pipeline.set_state(gstreamer::State::Null);
     Ok(())
 }
