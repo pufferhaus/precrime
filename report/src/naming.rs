@@ -1,4 +1,4 @@
-//! PRECOG NDI source-name helpers.
+//! NDI source-name filter and display helpers.
 
 pub fn is_precog_source(name: &str) -> bool {
     name.starts_with("PRECOG-")

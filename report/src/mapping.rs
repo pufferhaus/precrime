@@ -1,6 +1,7 @@
 //! Map discovered NDI source names to keyboard slots 1..=9.
 
 use std::collections::{BTreeSet, HashMap};
+use tracing::warn;
 
 pub const MAX_SLOTS: u8 = 9;
 
@@ -16,15 +17,23 @@ pub fn assign_slots(
     let mut taken = BTreeSet::new();
 
     // Apply pinned overrides first.
-    for (name, slot) in overrides {
+    // When two overrides target the same slot, the alphabetically-first source
+    // name wins; the other falls back to the alphabetical pass.
+    let mut sorted_overrides: Vec<(&String, &u8)> = overrides.iter().collect();
+    sorted_overrides.sort_by(|(a, _), (b, _)| a.as_str().cmp(b.as_str()));
+    for (name, slot) in sorted_overrides {
         if !sources.iter().any(|s| s == name) {
+            warn!(source = %name, "override dropped: source not present in input list");
             continue;
         }
         if *slot < 1 || *slot > MAX_SLOTS {
+            warn!(source = %name, slot, max = MAX_SLOTS, "override dropped: slot out of range");
             continue;
         }
         if taken.insert(*slot) {
             mapping.insert(name.clone(), *slot);
+        } else {
+            warn!(source = %name, slot, "override dropped: slot already taken by alphabetically-prior name");
         }
     }
 

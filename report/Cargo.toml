@@ -14,13 +14,14 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# --- Used by SUB-2 modules (input.rs, daemon.rs, main.rs journald init) ---
 tracing-journald = "0.3"
+evdev = "0.12"
+parking_lot = "0.12"
 # TODO(SUB-2): re-enable GStreamer deps once system libs are confirmed installed
 # gstreamer = "0.23"
 # gstreamer-video = "0.23"
 # cairo-rs = { version = "0.20", features = ["use_glib"] }
-evdev = "0.12"
-parking_lot = "0.12"
 
 [dev-dependencies]
 pretty_assertions = "1"
