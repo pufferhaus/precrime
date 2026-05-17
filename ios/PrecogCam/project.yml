@@ -1,0 +1,57 @@
+name: PrecogCam
+options:
+  bundleIdPrefix: art.precrime
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: en
+  defaultConfig: Debug
+
+settings:
+  base:
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    ENABLE_BITCODE: NO
+    CLANG_ENABLE_MODULES: YES
+
+targets:
+  PrecogCam:
+    type: application
+    platform: iOS
+    sources:
+      - path: PrecogCam
+    info:
+      path: PrecogCam/Info.plist
+      properties:
+        CFBundleDisplayName: PRECOG-Cam
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIRequiresPersistentWiFi: true
+        UIBackgroundModes: []
+        UIRequiredDeviceCapabilities: [arm64, wifi]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: "Live camera capture for RTP broadcast on the local network."
+        NSMicrophoneUsageDescription: "Live audio capture for RTP broadcast on the local network."
+        NSLocalNetworkUsageDescription: "Stream H.264 video to a PRECRIME REPORT receiver on this network."
+        NSBonjourServices:
+          - _precog._tcp
+          - _precrime-report._tcp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: art.precrime.PrecogCam
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        EXCLUDED_ARCHS[sdk=iphonesimulator*]: arm64
+    dependencies:
+      - sdk: AVFoundation.framework
+      - sdk: CoreMedia.framework
+      - sdk: CoreVideo.framework
+      - sdk: VideoToolbox.framework
+      - sdk: UIKit.framework
