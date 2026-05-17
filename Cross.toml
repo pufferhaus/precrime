@@ -1,0 +1,20 @@
+# Cross-compile config for `cross build --target aarch64-unknown-linux-gnu`.
+# Mirrors the Debian Bookworm aarch64 sysroot used by Raspberry Pi OS Bookworm 64-bit
+# on the Pi 5s. Each pre-build step installs the dev headers/libs needed for
+# compile-time linking of gstreamer-rs, cairo-rs, and evdev-rs. Runtime plugins
+# (x264, v4l2, rtp, etc.) are dlopen'd from apt-installed packages on the Pi.
+
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main"
+
+pre-build = [
+    "dpkg --add-architecture $CROSS_DEB_ARCH",
+    "apt-get update",
+    "apt-get install --assume-yes --no-install-recommends libgstreamer1.0-dev:$CROSS_DEB_ARCH libgstreamer-plugins-base1.0-dev:$CROSS_DEB_ARCH libcairo2-dev:$CROSS_DEB_ARCH libevdev-dev:$CROSS_DEB_ARCH libudev-dev:$CROSS_DEB_ARCH pkg-config",
+]
+
+[target.aarch64-unknown-linux-gnu.env]
+# pkg-config lookups inside the cross container must resolve aarch64 .pc files
+# from the multiarch path; without this, pkg-config can silently pick host .pc.
+PKG_CONFIG_PATH = "/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+PKG_CONFIG_ALLOW_CROSS = "1"
