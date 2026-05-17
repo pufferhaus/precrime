@@ -100,7 +100,14 @@ struct SettingsView: View {
 
                 Section("Stage mode") {
                     Toggle("Enable stage mode", isOn: $settings.stageMode)
-                    Text("Screen blacks out so the phone is invisible on stage and runs cooler. Camera and RTP keep going. iOS will not allow the camera to continue if the phone fully locks — stage mode is the closest workable equivalent.\n\nDouble-tap anywhere on screen to exit.")
+                    Text("Screen dims to near-black so the phone is invisible on stage. Camera and RTP keep running. iOS prohibits background camera access — stage mode is the workaround.\n\nDouble-tap anywhere on screen to exit.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Kiosk mode") {
+                    Toggle("Lock to this app on launch", isOn: $settings.kioskMode)
+                    Text("Requests Guided Access on startup — locks the phone to WITNESS so the home button, control centre, and all other apps are inaccessible.\n\nRequires: Settings → Accessibility → Guided Access → ON, with a passcode set. Also requires the paid Apple Developer certificate (com.apple.developer.guided-access entitlement).\n\nTo exit kiosk mode: triple-click the side button and enter the Guided Access passcode.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

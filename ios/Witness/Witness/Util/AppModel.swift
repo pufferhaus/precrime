@@ -81,6 +81,9 @@ final class AppModel: ObservableObject {
         settingsObservers.append(settings.$stageMode.sink { [weak self] on in
             self?.applyStageMode(on)
         })
+        settingsObservers.append(settings.$kioskMode.sink { [weak self] on in
+            self?.applyKioskMode(on)
+        })
         // When source identity changes, republish Bonjour TXT.
         settingsObservers.append(settings.$sourceName.dropFirst().sink { [weak self] _ in
             self?.republishBonjour()
@@ -111,6 +114,18 @@ final class AppModel: ObservableObject {
         UIScreen.main.brightness = on ? 0.15 : 0.6
     }
 
+    /// Request or release Guided Access (Autonomous Single App Mode).
+    /// Requires the com.apple.developer.guided-access entitlement (paid Apple
+    /// Developer account) and Guided Access enabled in iOS Settings →
+    /// Accessibility. Silently no-ops if the entitlement is absent.
+    private func applyKioskMode(_ on: Bool) {
+        UIAccessibility.requestGuidedAccessSession(enabled: on) { success in
+            if on && !success {
+                Self.logger.warning("kiosk mode requested but Guided Access unavailable — enable in Settings → Accessibility → Guided Access")
+            }
+        }
+    }
+
     // MARK: - Bootstrap
 
     func bootstrap() async {
@@ -120,6 +135,7 @@ final class AppModel: ObservableObject {
             return
         }
         UIApplication.shared.isIdleTimerDisabled = true
+        if settings.kioskMode { applyKioskMode(true) }
         startEncodePipeline()
         startNetworkDiscovery()
     }

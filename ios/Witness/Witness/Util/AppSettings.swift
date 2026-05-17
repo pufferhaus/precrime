@@ -33,6 +33,9 @@ final class AppSettings: ObservableObject {
     @Published var stageMode: Bool {
         didSet { defaults.set(stageMode, forKey: Keys.stageMode) }
     }
+    @Published var kioskMode: Bool {
+        didSet { defaults.set(kioskMode, forKey: Keys.kioskMode) }
+    }
 
     private let defaults = UserDefaults.standard
 
@@ -47,6 +50,7 @@ final class AppSettings: ObservableObject {
         static let zoomFactor = "zoomFactor"
         static let exposureBias = "exposureBias"
         static let stageMode = "stageMode"
+        static let kioskMode = "kioskMode"
     }
 
     init() {
@@ -74,6 +78,7 @@ final class AppSettings: ObservableObject {
         self.zoomFactor = storedZoom < 1.0 ? 1.0 : storedZoom
         self.exposureBias = defaults.double(forKey: Keys.exposureBias)
         self.stageMode = defaults.bool(forKey: Keys.stageMode)
+        self.kioskMode = defaults.bool(forKey: Keys.kioskMode)
     }
 
     private static func defaultName() -> String {
