@@ -116,17 +116,26 @@ final class AppModel: ObservableObject {
         UIScreen.main.brightness = on ? 0.15 : 0.6
     }
 
-    /// Request or release Guided Access (Autonomous Single App Mode).
-    /// Requires the com.apple.developer.guided-access entitlement (paid Apple
-    /// Developer account) and Guided Access enabled in iOS Settings →
-    /// Accessibility. Silently no-ops if the entitlement is absent.
-    private func applyKioskMode(_ on: Bool) {
-        UIAccessibility.requestGuidedAccessSession(enabled: on) { success in
-            if on && !success {
-                Self.logger.warning("kiosk mode requested but Guided Access unavailable — enable in Settings → Accessibility → Guided Access")
-            }
+    // MARK: - Kiosk mode
+
+    /// True when iOS Guided Access is currently active.
+    @Published var guidedAccessActive: Bool = UIAccessibility.isGuidedAccessEnabled
+
+    private func startGuidedAccessObserver() {
+        NotificationCenter.default.addObserver(
+            forName: UIAccessibility.guidedAccessStatusDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.guidedAccessActive = UIAccessibility.isGuidedAccessEnabled
         }
     }
+
+    // applyKioskMode is kept for the settings sink but does nothing — the
+    // programmatic API (requestGuidedAccessSession) requires an Apple-gated
+    // enterprise entitlement. Operator must triple-click the side button.
+    // We guide them via the kiosk prompt overlay in ContentView instead.
+    private func applyKioskMode(_ on: Bool) {}
 
     // MARK: - Bootstrap
 
@@ -137,15 +146,9 @@ final class AppModel: ObservableObject {
             return
         }
         UIApplication.shared.isIdleTimerDisabled = true
+        startGuidedAccessObserver()
         startEncodePipeline()
         startNetworkDiscovery()
-        // Delay kiosk activation until the UI is fully on screen — iOS rejects
-        // UIAccessibility.requestGuidedAccessSession calls made before the app
-        // window is visible.
-        if settings.kioskMode {
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            applyKioskMode(true)
-        }
     }
 
     // MARK: - Encode pipeline (camera + encoder, no RTP target yet)

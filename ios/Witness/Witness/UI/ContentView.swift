@@ -50,6 +50,12 @@ struct ContentView: View {
 
                     Spacer()
 
+                    // Kiosk prompt — visible when kiosk mode is on but
+                    // Guided Access hasn't been activated yet.
+                    if model.settings.kioskMode && !model.guidedAccessActive {
+                        KioskPrompt()
+                    }
+
                     if let err = model.lastError {
                         Text(err)
                             .font(.callout.monospaced())
@@ -139,6 +145,29 @@ struct ContentView: View {
                 .environmentObject(model)
         }
         .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - Kiosk prompt
+
+private struct KioskPrompt: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "lock.shield")
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("KIOSK MODE")
+                    .font(.caption.bold().monospaced())
+                Text("Triple-click side button to activate")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            Spacer()
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.orange.opacity(0.85))
     }
 }
 

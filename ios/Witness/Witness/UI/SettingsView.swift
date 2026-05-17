@@ -107,7 +107,7 @@ struct SettingsView: View {
 
                 Section("Kiosk mode") {
                     Toggle("Lock to this app on launch", isOn: $settings.kioskMode)
-                    Text("Requests Guided Access on startup — locks the phone to WITNESS so the home button, control centre, and all other apps are inaccessible.\n\nRequires: Settings → Accessibility → Guided Access → ON, with a passcode set.\n\nTo exit: triple-click the side button and enter the Guided Access passcode.")
+                    Text("Shows a prompt to activate Guided Access — locks the phone to WITNESS so the home button, control centre, and all other apps are inaccessible.\n\nTo activate: triple-click the side button when the orange banner appears.\n\nRequires: Settings → Accessibility → Guided Access → ON, with a passcode set.\n\nTo exit: triple-click the side button and enter the Guided Access passcode.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
