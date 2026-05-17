@@ -65,9 +65,9 @@ clean-cross:
 
 deploy-report: build-report
 	rsync -avz --progress $(RELEASE_DIR)/report \
-	    $(REPORT_USER)@$(REPORT_HOST):/usr/local/bin/report.new
+	    $(REPORT_USER)@$(REPORT_HOST):/tmp/report.new
 	ssh $(REPORT_USER)@$(REPORT_HOST) \
-	    'sudo mv /usr/local/bin/report.new /usr/local/bin/report \
+	    'sudo mv /tmp/report.new /usr/local/bin/report \
 	     && sudo systemctl restart report.service'
 
 install-report:
@@ -94,9 +94,9 @@ restart-report:
 
 deploy-precog: build-precog
 	rsync -avz --progress $(RELEASE_DIR)/precog \
-	    $(PRECOG_USER)@$(PRECOG_HOST):/usr/local/bin/precog.new
+	    $(PRECOG_USER)@$(PRECOG_HOST):/tmp/precog.new
 	ssh $(PRECOG_USER)@$(PRECOG_HOST) \
-	    'sudo mv /usr/local/bin/precog.new /usr/local/bin/precog \
+	    'sudo mv /tmp/precog.new /usr/local/bin/precog \
 	     && sudo systemctl restart precog.service'
 
 install-precog:
