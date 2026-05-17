@@ -1,146 +1,177 @@
 # PRECRIME
 
-A redeployable multi-camera H.264/RTP switching rig for live performance visuals
-and livestreaming, built around a surveillance/CCTV aesthetic. Fully FOSS — no
-NDI SDK, no proprietary licensing.
+A redeployable multi-camera H.264/RTP switching rig for live performance visuals and livestreaming, built around a surveillance/CCTV aesthetic. Fully FOSS — no NDI SDK, no proprietary licensing.
 
-Operator switches between heterogeneous video sources (phones, vintage analog
-CCTV cams through Pi-based encoders, modern IP cams, HDMI sources via dedicated
-encoders) from a custom Pi-based hardware switcher with dual HDMI out (program +
-multiview preview).
+Operator switches between heterogeneous video sources (iPhones, vintage analog CCTV cams through Pi-based encoders, modern IP cams, HDMI sources) from a custom Pi-based hardware switcher with dual HDMI out (program + multiview preview).
 
 ## Status
 
-**Phase 1 software complete + RTP/multicast migration shipped.** Hardware bring-up pending.
+**Phase 1 + 1.5 complete. WITNESS iOS app shipped. Hardware bring-up pending.**
 
-- ✅ Rust workspace with three crates (`report`, `precog`, `temple`)
-- ✅ TDD-covered pure-Rust modules (config parsing, slot mapping, ball discovery) — 42 tests, all green
-- ✅ TEMPLE crate — JSON ball wire format + UDP multicast send/receive for source discovery
-- ✅ GStreamer pipeline builders (RTP/UDP sources, program input-selector, multiview compositor, cairo tally overlay)
-- ✅ evdev USB keyboard input
-- ✅ Daemon orchestration with per-pipeline bus watch
-- ✅ systemd units + deploy artifacts
-- ⏳ Pi-side build + M3'–M11' hardware verification
-- ⏳ Network Brain (Flint 3 router config — IGMP snooping enable required)
-- ⏳ PRECOG Kit B (phone publisher app + SRT/RTMP→RTP bridge — separate plan)
-- ⏳ Phase 2 next-up: smart plug bus + phone provisioning
+- ✅ Rust workspace — `report`, `precog`, `temple` crates, 42 tests green
+- ✅ TEMPLE — JSON ball wire format + UDP multicast send/receive for source discovery
+- ✅ GStreamer pipelines — RTP/UDP sources, program input-selector, multiview compositor, cairo tally overlay, V4L2 HW decode on Pi 5
+- ✅ REPORT — dynamic source registration (TCP), Bonjour publish, UDP ack to all active sources
+- ✅ WITNESS — iOS camera app, zero-config Bonjour discovery, H.264/RTP unicast, camera controls, stage mode
+- ✅ CI — GitHub Actions (fmt + clippy + check + test)
+- ⏳ Hardware: Flint 3, Pi 5s, EasyCap — Phase 2 blocked on procurement
+- ⏳ Titler GStreamer element — Phase T1.3
 
 ## Architecture
 
 ```
-   [PRECOG N]──┐
-      ...      ├── WiFi/Ethernet ── [Router] ── [REPORT (Pi 5)] ──┬─> HDMI Program (capture/stream)
-   [PRECOG 1]──┘                                                  └─> HDMI Multiview (operator)
+   [WITNESS (iPhone)]──┐
+   [PRECOG Pi+EasyCap]─┼── WiFi/LAN ── [REPORT (Pi 5)] ──┬─▶ HDMI Program
+   [PRECOG Pi+...]─────┘                                  └─▶ HDMI Multiview
 ```
 
-**Hard interface:** every camera source publishes H.264 over RTP to a per-source
-IPv4 multicast group (`239.42.x.y`, TTL=1, admin-scoped) on the LAN. Each source
-also emits a JSON "ball" every 2 seconds on the TEMPLE discovery channel
-(`239.42.0.1:9999`) advertising its name, multicast endpoint, and video format.
-Source names follow `PRECOG-NN-<TYPE>-<LOC>` (e.g. `PRECOG-01-IPHONE-STAGE`).
-Any device that meets this contract is a valid PRECRIME camera — phones,
-Pi+EasyCap encoders, IP cams via RTSP→RTP bridge, HDMI sources via dedicated
-encoder.
+**Camera → REPORT transport:**
+
+- **Pi PRECOGs**: H.264/RTP → IPv4 multicast group (`239.42.x.y`, TTL=1). Discovery via JSON ball every 2s on TEMPLE channel (`239.42.0.1:9999`).
+- **WITNESS (iPhone)**: H.264/RTP → UDP unicast to REPORT. Discovery via Bonjour (`_precrime-report._tcp`). iOS blocks multicast sends without Apple entitlement.
+
+Both transports feed the same REPORT pipeline — same caps, same `rtpjitterbuffer → rtph264depay → decoder → input-selector` chain.
+
+**Zero-config connection (WITNESS):**
+
+```
+WITNESS                              REPORT
+  │ browse _precrime-report._tcp ──▶ publish _precrime-report._tcp
+  │ TCP register (name, res, fps) ──▶ assign port from pool (5000–5099)
+  │ ◀── {assigned_port, ack_port} ──│
+  │ RTP → REPORT:assigned_port ────▶ udpsrc on assigned port
+  │ ◀── UDP ack every 2s ──────────│
+```
 
 **System naming** (Minority Report themed):
 
-- **PRECRIME** — the system as a whole
-- **PRECOG** — a camera unit (each a vision feed)
-- **REPORT** — the switcher Pi (assembles the prediction)
-- **TEMPLE** — the discovery channel where precogs announce themselves via named balls
-- **MEZZANINE** — future custom hardware controller (Phase 2)
+| Name | Role |
+|---|---|
+| **PRECRIME** | The system as a whole |
+| **PRECOG** | A camera unit — any H.264/RTP source on the LAN |
+| **REPORT** | The Pi 5 switcher daemon |
+| **WITNESS** | The iOS camera sender app |
+| **TEMPLE** | Discovery channel — precogs announce via JSON balls |
+| **MEZZANINE** | Future hardware controller |
 
 ## Repo layout
 
 ```
 .
-├── Cargo.toml                  # workspace root (members: report, precog, temple)
-├── temple/                     # discovery beacon library crate (ball wire format + UDP mcast)
-│   └── src/{lib,ball,send,recv}.rs
-├── report/                     # switcher binary crate + deploy artifacts
-│   ├── src/{main,daemon,pipeline,input,config,mapping}.rs
-│   ├── tests/                  # pure-Rust integration tests
-│   ├── install.sh              # apt + rustup installer (run on Pi)
-│   ├── report.conf.example     # /etc/precrime/report.conf template
-│   ├── report.service          # systemd unit
+├── Cargo.toml                  # workspace root (report + precog + temple)
+├── temple/                     # discovery library (ball wire format + UDP multicast)
+├── report/                     # switcher daemon + deploy artifacts
+│   ├── src/
+│   │   ├── daemon.rs           # event loop, thread orchestration
+│   │   ├── pipeline.rs         # GStreamer builders (program + preview)
+│   │   ├── registration.rs     # TCP registration server, port pool
+│   │   ├── ack.rs              # UDP ack sender (2s loop → all sources)
+│   │   ├── bonjour.rs          # avahi-publish-service subprocess
+│   │   ├── config.rs           # TOML config parsing
+│   │   ├── mapping.rs          # source → slot assignment
+│   │   └── input.rs            # evdev keyboard
+│   ├── report.conf.example
+│   ├── report.service
 │   └── runbook.md
-├── precog/                     # camera encoder binary crate + deploy artifacts
+├── precog/                     # Pi camera encoder daemon + deploy artifacts
 │   ├── src/{main,config,lib}.rs
-│   ├── install.sh
 │   ├── precog.conf.example
 │   ├── precog.service
 │   └── kit-a-cctv-runbook.md
-├── network/                    # router config exports, IGMP-snooping notes
-├── hardware/                   # MEZZANINE controller firmware (Phase 2+)
+├── ios/
+│   └── Witness/                # iOS WITNESS camera app
+│       ├── project.yml         # xcodegen spec
+│       ├── Makefile
+│       ├── scripts/mock_report.py  # dev REPORT mock
+│       └── Witness/            # Swift sources
 └── docs/
-    ├── specs/                  # system-level design specs
-    ├── plans/                  # implementation plans per sub-project
-    └── runbooks/               # operator + dev runbooks
+    ├── runbooks/
+    └── superpowers/specs/      # feature design docs
 ```
 
-## Build
+## Build — Rust (REPORT + PRECOG)
 
-Build happens on the Pi via SSH; no local cross-compile setup. Drive everything
-from the Makefile at the repo root.
+Build happens on the Pi via SSH. Drive from the repo root Makefile.
 
-**First-time install on a Pi:**
+**First-time Pi setup:**
 
 ```bash
 make install-report REPORT_HOST=report.local
-# SSH in and edit /etc/precrime/report.conf (connector IDs, keyboard device, temple_group/port if non-default)
-make deploy-report   REPORT_HOST=report.local
+# SSH in → edit /etc/precrime/report.conf
+make deploy-report REPORT_HOST=report.local
 ```
 
-Same shape for PRECOG units:
-
 ```bash
-make install-precog PRECOG_HOST=precog-02-cctv-door.local
-# edit /etc/precog/precog.conf on the Pi (source_name, device, format, rtp_mcast, rtp_port)
-make deploy-precog  PRECOG_HOST=precog-02-cctv-door.local
+make install-precog PRECOG_HOST=precog-01.local
+# SSH in → edit /etc/precog/precog.conf
+make deploy-precog PRECOG_HOST=precog-01.local
 ```
 
 **Iterate:**
 
 ```bash
-make deploy-report   # rsync + cargo build --release + restart service
+make deploy-report   # rsync + cargo build --release + restart
 make logs-report     # tail journalctl -u report.service -f
-make restart-report  # restart only, no rebuild
+make restart-report  # restart only
 ```
 
-`make help` lists every target. All targets take `REPORT_HOST=...` or
-`PRECOG_HOST=...` overrides.
-
-**On macOS (dev only):**
+**macOS dev:**
 
 ```bash
 brew install gstreamer gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
-make check    # cargo check whole workspace
-make test     # cargo test --workspace (all 42 tests pass on macOS)
+make check && make test
 ```
 
-For a full RTP loopback smoke test against the built-in webcam, follow
-[`docs/runbooks/2026-05-17-rtp-mac-smoke.md`](docs/runbooks/2026-05-17-rtp-mac-smoke.md).
+## Build — WITNESS (iOS)
+
+```bash
+brew install xcodegen
+cd ios/Witness && make open
+```
+
+WITNESS auto-discovers REPORT via Bonjour — no manual IP config. Dev testing without a Pi:
+
+```bash
+python3 ios/Witness/scripts/mock_report.py
+```
+
+See [`ios/Witness/README.md`](ios/Witness/README.md) for full docs.
+
+## REPORT configuration
+
+`/etc/precrime/report.conf`:
+
+```toml
+program_connector_id = 32
+preview_connector_id = 34
+keyboard_device      = "/dev/input/event0"
+
+report_name  = "REPORT-MAIN"   # shown in WITNESS status bar
+reg_port     = 4999            # WITNESS registration port
+rtp_port_min = 5000
+rtp_port_max = 5099
+ack_port     = 9998
+
+temple_group = "239.42.0.1"
+temple_port  = 9999
+```
 
 ## Documentation
 
-- **Current architecture:** [`docs/plans/2026-05-17-rtp-multicast-migration.md`](docs/plans/2026-05-17-rtp-multicast-migration.md) — full RTP+multicast + TEMPLE design and the 13-task implementation plan that landed it.
-- **System design spec (NDI era, superseded):** [`docs/specs/2026-05-16-precrime-system-design.md`](docs/specs/2026-05-16-precrime-system-design.md) — retained for historical context; transport sections are out of date.
-- **macOS dev smoke:** [`docs/runbooks/2026-05-17-rtp-mac-smoke.md`](docs/runbooks/2026-05-17-rtp-mac-smoke.md) — local RTP loopback procedure.
-- **Operator runbooks** are colocated with each component (`report/runbook.md`, `precog/kit-a-cctv-runbook.md`).
+| Doc | What |
+|---|---|
+| [`ios/Witness/README.md`](ios/Witness/README.md) | WITNESS build, controls, stage mode, mock server |
+| [`report/runbook.md`](report/runbook.md) | REPORT operator runbook |
+| [`precog/kit-a-cctv-runbook.md`](precog/kit-a-cctv-runbook.md) | Pi CCTV encoder setup |
+| [`docs/runbooks/2026-05-17-rtp-mac-smoke.md`](docs/runbooks/2026-05-17-rtp-mac-smoke.md) | macOS RTP loopback test |
+| [`docs/superpowers/specs/`](docs/superpowers/specs/) | Feature design specs |
 
-## Hardware
+## Hardware (Phase 2 BOM, ~$490)
 
-Phase 1 bill of materials (~$490 + tax/shipping):
-
-- GL.iNet Flint 3 (GL-BE9300) WiFi 7/6E router — ~$200-300
-- Raspberry Pi 5 8GB (REPORT) + accessories — ~$130
-- Raspberry Pi 5 4GB (PRECOG encoder) + accessories — ~$100
-- EasyCap UTV007 USB analog video capture — $15
-- iPhone 15 (owned) + FOSS-compatible publisher app (Moblin recommended; Larix Broadcaster freeware as fallback) — needs a thin SRT/RTMP→RTP-multicast bridge daemon, separate plan pending
-- Vintage CCTV cam (owned)
-- Misc cables, mounts, power — ~$50
-
-See spec §8 for the full itemized list (note: spec transport section is superseded by RTP migration).
+- GL.iNet Flint 3 (GL-BE9300) WiFi 7/6E router — ~$200–300
+- 2× Raspberry Pi 5 8GB + coolers + SD cards — ~$230
+- EasyCap UTV007 USB analog capture — $15
+- Cat6a, mounts, power — ~$50
 
 ## License
 
