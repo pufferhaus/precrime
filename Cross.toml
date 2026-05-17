@@ -1,21 +1,13 @@
-# Cross-compile config for `cross build --target aarch64-unknown-linux-gnu`.
-# Mirrors the Debian Bookworm aarch64 sysroot used by Raspberry Pi OS Bookworm 64-bit
-# on the Pi 5s. Each pre-build step installs the dev headers/libs needed for
-# compile-time linking of gstreamer-rs and cairo-rs. Runtime plugins (x264, v4l2,
-# rtp, etc.) are dlopen'd from apt-installed packages on the Pi.
+# Cross.toml is used by `cross check` in CI (ubuntu-latest, x86_64).
+# Local builds on Apple Silicon use `docker run precrime-cross:aarch64` directly
+# (see Makefile) — cross forces --platform linux/amd64 which breaks on arm64 hosts.
+#
+# The pre-build step installs the aarch64 dev headers the cross container needs
+# to resolve gstreamer-rs / cairo-rs pkg-config at compile-check time.
 
 [target.aarch64-unknown-linux-gnu]
-image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main"
-
 pre-build = [
     "dpkg --add-architecture $CROSS_DEB_ARCH",
     "apt-get update",
     "apt-get install --assume-yes --no-install-recommends libgstreamer1.0-dev:$CROSS_DEB_ARCH libgstreamer-plugins-base1.0-dev:$CROSS_DEB_ARCH libcairo2-dev:$CROSS_DEB_ARCH pkg-config",
 ]
-
-[target.aarch64-unknown-linux-gnu.env]
-# LIBDIR replaces the default pkg-config search path entirely; PATH would only
-# prepend and can leak host-arch .pc files (e.g. on a CI runner with
-# libgstreamer1.0-dev installed for the host arch).
-PKG_CONFIG_LIBDIR = "/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
-PKG_CONFIG_ALLOW_CROSS = "1"

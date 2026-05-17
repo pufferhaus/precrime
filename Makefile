@@ -1,6 +1,7 @@
 # PRECRIME build + deploy targets.
 #
-# Build runs on macOS via `cross` (Docker/colima) targeting aarch64.
+# Builds run on macOS via a native linux/arm64 Docker container (no QEMU).
+# One-time setup: make build-image
 # Override hosts per invocation:
 #   make deploy-report REPORT_HOST=192.168.50.10
 #   make logs-precog   PRECOG_HOST=precog-02-cctv-door.local
@@ -8,17 +9,29 @@
 TARGET      := aarch64-unknown-linux-gnu
 RELEASE_DIR := target/$(TARGET)/release
 
+# docker run template: mount cargo registry cache + workspace, build in native arm64 container.
+# Mount only ~/.cargo/registry (downloaded crate sources) not ~/.cargo/bin (macOS binaries).
+DOCKER_BUILD := docker run --rm --platform linux/arm64 \
+    -v $(HOME)/.cargo/registry:/root/.cargo/registry \
+    -v $(CURDIR):/project \
+    -w /project \
+    precrime-cross:aarch64 \
+    cargo build --release --target $(TARGET)
+
 PRECOG_HOST ?= precog-01.local
 PRECOG_USER ?= precog
 REPORT_HOST ?= report.local
 REPORT_USER ?= pi
 
 .PHONY: help check fmt clippy test \
-        build-precog build-report build-all clean-cross \
+        build-image build-precog build-report build-all clean-cross \
         deploy-report install-report logs-report restart-report \
         deploy-precog install-precog logs-precog restart-precog
 
 help:
+	@echo "One-time setup (after cloning or changing Cross.Dockerfile):"
+	@echo "  make build-image"
+	@echo ""
 	@echo "Build (cross-compile from macOS to aarch64):"
 	@echo "  make build-precog | build-report | build-all"
 	@echo "  make clean-cross"
@@ -34,6 +47,11 @@ help:
 	@echo "First-time provision (apt + systemd unit, run once per Pi):"
 	@echo "  make install-precog | install-report"
 
+# --- Docker image ---
+
+build-image:
+	docker build --platform linux/arm64 -f Cross.Dockerfile -t precrime-cross:aarch64 .
+
 # --- Local workspace ---
 
 check:
@@ -48,18 +66,18 @@ clippy:
 test:
 	cargo test
 
-# ---- Cross-compile from macOS to aarch64 (Raspberry Pi 5) ----
+# ---- Build for aarch64 (Raspberry Pi 5) via native arm64 container ----
 
 build-precog:
-	cross build --release --target $(TARGET) --package precog
+	$(DOCKER_BUILD) --package precog
 
 build-report:
-	cross build --release --target $(TARGET) --package report
+	$(DOCKER_BUILD) --package report
 
 build-all: build-precog build-report
 
 clean-cross:
-	cross clean --target $(TARGET)
+	rm -rf target/$(TARGET)
 
 # --- REPORT (switcher Pi) ---
 
