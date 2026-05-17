@@ -44,6 +44,20 @@ impl PrecogConfig {
     pub fn from_toml(raw: &str) -> Result<Self, toml::de::Error> {
         toml::from_str(raw)
     }
+
+    pub fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.rtp_mcast.is_multicast(),
+            "rtp_mcast {} is not a multicast address (224.0.0.0/4)",
+            self.rtp_mcast
+        );
+        anyhow::ensure!(
+            self.temple_group.is_multicast(),
+            "temple_group {} is not a multicast address (224.0.0.0/4)",
+            self.temple_group
+        );
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -82,5 +96,39 @@ rtp_mcast = "not-an-ip"
 rtp_port = 5000
 "#;
         assert!(PrecogConfig::from_toml(raw).is_err());
+    }
+
+    #[test]
+    fn validate_accepts_multicast() {
+        let raw = r#"
+source_name = "PRECOG-01-X"
+device = "/dev/video0"
+format = "UYVY"
+width = 1920
+height = 1080
+framerate = "30/1"
+rtp_mcast = "239.42.1.1"
+rtp_port = 5000
+"#;
+        let c = PrecogConfig::from_toml(raw).unwrap();
+        assert!(c.validate().is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_unicast_rtp_mcast() {
+        let raw = r#"
+source_name = "PRECOG-01-X"
+device = "/dev/video0"
+format = "UYVY"
+width = 1920
+height = 1080
+framerate = "30/1"
+rtp_mcast = "192.168.1.1"
+rtp_port = 5000
+"#;
+        let c = PrecogConfig::from_toml(raw).unwrap();
+        let err = c.validate().unwrap_err();
+        assert!(err.to_string().contains("rtp_mcast"));
+        assert!(err.to_string().contains("not a multicast"));
     }
 }

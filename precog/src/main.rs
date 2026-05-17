@@ -23,6 +23,8 @@ fn main() -> Result<()> {
         .with_context(|| format!("reading config from {config_path}"))?;
     let cfg = PrecogConfig::from_toml(&raw)
         .with_context(|| format!("parsing config from {config_path}"))?;
+    cfg.validate()
+        .with_context(|| format!("validating config from {config_path}"))?;
 
     info!(?cfg, "PRECOG starting");
 
