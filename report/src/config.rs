@@ -26,8 +26,12 @@ pub struct ReportConfig {
     pub temple_port: u16,
 }
 
-fn default_temple_group() -> Ipv4Addr { "239.42.0.1".parse().unwrap() }
-fn default_temple_port() -> u16 { 9999 }
+fn default_temple_group() -> Ipv4Addr {
+    "239.42.0.1".parse().unwrap()
+}
+fn default_temple_port() -> u16 {
+    9999
+}
 
 impl ReportConfig {
     pub fn from_toml(raw: &str) -> Result<Self, ConfigError> {

@@ -1,7 +1,7 @@
 //! GStreamer pipeline builders for REPORT.
 //!
 //! Two independent pipelines, each rendering directly to a DRM/KMS connector:
-//! - `program`: input-selector over N ndisrc inputs → kmssink (HDMI-A-1)
+//! - `program`: input-selector over N udpsrc RTP inputs → kmssink (HDMI-A-1)
 //! - `preview`: compositor (2x2 or 3x3 grid) → cairooverlay tally → kmssink (HDMI-A-2)
 
 use anyhow::{Context, Result};
@@ -9,20 +9,39 @@ use gstreamer::prelude::*;
 use gstreamer::{Element, Pipeline};
 use std::sync::Arc;
 
+/// One discovered source as seen by the pipeline builders. Cloned from the
+/// `temple::Ball` payload at the moment pipelines are rebuilt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Source {
+    pub name: String,
+    pub mcast: String, // IPv4 multicast group, e.g. "239.42.1.1"
+    pub port: u16,
+    pub payload_type: u8,
+    pub clock_rate: u32,
+    pub encoding_name: String, // "H264"
+}
+
 pub struct ProgramPipeline {
     pub pipeline: Pipeline,
     pub selector: Element,
 }
 
-/// Build the program-out pipeline. Returns the pipeline and the `input-selector`
-/// element handle (used to switch sources at runtime).
 /// Construct the program-out gst-launch pipeline string. Pure function for testing.
-pub fn program_pipeline_string(source_names: &[String], connector_id: u32) -> String {
+pub fn program_pipeline_string(sources: &[Source], connector_id: u32) -> String {
     let mut parts = String::from("input-selector name=sel");
-    for (i, name) in source_names.iter().enumerate() {
-        let escaped = escape_ndi_name(name);
+    for (i, s) in sources.iter().enumerate() {
         parts.push_str(&format!(
-            r#" ndisrc ndi-name="{escaped}" ! ndisrcdemux name=d{i} d{i}.video ! queue max-size-buffers=4 leaky=downstream ! videoconvert ! sel.sink_{i}"#
+            " udpsrc address={mcast} port={port} auto-multicast=true \
+             caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\" ! \
+             rtpjitterbuffer latency=20 ! \
+             rtph264depay ! h264parse ! avdec_h264 ! \
+             queue max-size-buffers=4 leaky=downstream ! \
+             videoconvert ! sel.sink_{i}",
+            mcast = s.mcast,
+            port = s.port,
+            cr = s.clock_rate,
+            enc = s.encoding_name,
+            pt = s.payload_type,
         ));
     }
     parts.push_str(&format!(
@@ -31,8 +50,8 @@ pub fn program_pipeline_string(source_names: &[String], connector_id: u32) -> St
     parts
 }
 
-pub fn build_program(source_names: &[String], connector_id: u32) -> Result<ProgramPipeline> {
-    let parts = program_pipeline_string(source_names, connector_id);
+pub fn build_program(sources: &[Source], connector_id: u32) -> Result<ProgramPipeline> {
+    let parts = program_pipeline_string(sources, connector_id);
     let pipeline = gstreamer::parse::launch(&parts)
         .context("parse program pipeline")?
         .downcast::<Pipeline>()
@@ -71,32 +90,41 @@ pub struct PreviewPipeline {
 /// no source is selected.
 /// Construct the multiview gst-launch pipeline string. Pure function for testing.
 /// Returns the pipeline string. For zero sources, returns a black-test-pattern fallback.
-pub fn preview_pipeline_string(source_names: &[String], connector_id: u32) -> String {
-    if source_names.is_empty() {
+pub fn preview_pipeline_string(sources: &[Source], connector_id: u32) -> String {
+    if sources.is_empty() {
         return format!(
             "videotestsrc pattern=black is-live=true ! video/x-raw,width=1920,height=1080 ! videoconvert ! kmssink connector-id={connector_id}"
         );
     }
 
-    let n = source_names.len();
+    let n = sources.len();
     let (cols, rows) = grid_for(n);
     let tile_w: u32 = 1920 / cols as u32;
     let tile_h: u32 = 1080 / rows as u32;
 
     let mut s = String::from("compositor name=mix background=black");
-    for (i, _name) in source_names.iter().enumerate() {
+    for (i, _) in sources.iter().enumerate() {
         let col = (i % cols) as u32;
         let row = (i / cols) as u32;
-        let x = col * tile_w;
-        let y = row * tile_h;
         s.push_str(&format!(
-            " sink_{i}::xpos={x} sink_{i}::ypos={y} sink_{i}::width={tile_w} sink_{i}::height={tile_h}"
+            " sink_{i}::xpos={x} sink_{i}::ypos={y} sink_{i}::width={tile_w} sink_{i}::height={tile_h}",
+            x = col * tile_w,
+            y = row * tile_h,
         ));
     }
-    for (i, name) in source_names.iter().enumerate() {
-        let escaped = escape_ndi_name(name);
+    for (i, src) in sources.iter().enumerate() {
         s.push_str(&format!(
-            r#" ndisrc ndi-name="{escaped}" ! ndisrcdemux name=pd{i} pd{i}.video ! queue max-size-buffers=4 leaky=downstream ! videoconvert ! videoscale ! video/x-raw,width={tile_w},height={tile_h} ! mix.sink_{i}"#
+            " udpsrc address={mcast} port={port} auto-multicast=true \
+             caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\" ! \
+             rtpjitterbuffer latency=20 ! \
+             rtph264depay ! h264parse ! avdec_h264 ! \
+             queue max-size-buffers=4 leaky=downstream ! \
+             videoconvert ! videoscale ! video/x-raw,width={tile_w},height={tile_h} ! mix.sink_{i}",
+            mcast = src.mcast,
+            port = src.port,
+            cr = src.clock_rate,
+            enc = src.encoding_name,
+            pt = src.payload_type,
         ));
     }
     s.push_str(&format!(
@@ -106,19 +134,19 @@ pub fn preview_pipeline_string(source_names: &[String], connector_id: u32) -> St
 }
 
 pub fn build_preview(
-    source_names: &[String],
+    sources: &[Source],
     connector_id: u32,
     get_active_slot: Arc<dyn Fn() -> Option<u8> + Send + Sync>,
 ) -> Result<PreviewPipeline> {
-    let s = preview_pipeline_string(source_names, connector_id);
-    if source_names.is_empty() {
+    let s = preview_pipeline_string(sources, connector_id);
+    if sources.is_empty() {
         let pipeline = gstreamer::parse::launch(&s)?
             .downcast::<Pipeline>()
             .map_err(|_| anyhow::anyhow!("downcast"))?;
         return Ok(PreviewPipeline { pipeline });
     }
 
-    let n = source_names.len();
+    let n = sources.len();
     let (cols, rows) = grid_for(n);
     let tile_w: u32 = 1920 / cols as u32;
     let tile_h: u32 = 1080 / rows as u32;
@@ -167,116 +195,75 @@ pub fn build_preview(
     Ok(PreviewPipeline { pipeline })
 }
 
-/// Escape an NDI source name for embedding inside a double-quoted
-/// gst-parse string. Backslash must be escaped first so the subsequent
-/// quote-escape doesn't get re-consumed by the parser.
-fn escape_ndi_name(name: &str) -> String {
-    name.replace('\\', "\\\\").replace('"', "\\\"")
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{escape_ndi_name, preview_pipeline_string, program_pipeline_string};
+    use super::{preview_pipeline_string, program_pipeline_string, Source};
 
-    #[test]
-    fn escapes_backslash_before_quote() {
-        assert_eq!(escape_ndi_name(r"CAM\1"), r"CAM\\1");
-        assert_eq!(escape_ndi_name(r#"CAM"X"#), r#"CAM\"X"#);
-        assert_eq!(escape_ndi_name(r#"CAM\"X"#), r#"CAM\\\"X"#);
-    }
-
-    #[test]
-    fn ordinary_names_unchanged() {
-        assert_eq!(
-            escape_ndi_name("PRECOG-01-IPHONE-STAGE"),
-            "PRECOG-01-IPHONE-STAGE"
-        );
+    fn s(name: &str, mcast: &str, port: u16) -> Source {
+        Source {
+            name: name.into(),
+            mcast: mcast.into(),
+            port,
+            payload_type: 96,
+            clock_rate: 90000,
+            encoding_name: "H264".into(),
+        }
     }
 
     #[test]
     fn program_pipeline_zero_sources() {
-        let s = program_pipeline_string(&[], 32);
+        let p = program_pipeline_string(&[], 32);
         assert_eq!(
-            s,
+            p,
             "input-selector name=sel sel. ! videoconvert ! kmssink connector-id=32"
         );
     }
 
     #[test]
-    fn program_pipeline_one_source() {
-        let s = program_pipeline_string(&["PRECOG-01-IPHONE-STAGE".to_string()], 32);
-        assert_eq!(
-            s,
-            r#"input-selector name=sel ndisrc ndi-name="PRECOG-01-IPHONE-STAGE" ! ndisrcdemux name=d0 d0.video ! queue max-size-buffers=4 leaky=downstream ! videoconvert ! sel.sink_0 sel. ! videoconvert ! kmssink connector-id=32"#
-        );
+    fn program_pipeline_one_source_uses_rtp_chain() {
+        let p = program_pipeline_string(&[s("A", "239.42.1.1", 5000)], 32);
+        assert!(p.contains("udpsrc address=239.42.1.1 port=5000 auto-multicast=true"));
+        assert!(p.contains("rtpjitterbuffer latency=20"));
+        assert!(p.contains("rtph264depay ! h264parse ! avdec_h264"));
+        assert!(p.contains("sel.sink_0"));
+        assert!(p.ends_with("kmssink connector-id=32"));
+        assert!(!p.contains("ndisrc"));
     }
 
     #[test]
-    fn program_pipeline_two_sources() {
-        let s = program_pipeline_string(
-            &[
-                "PRECOG-01-IPHONE-STAGE".to_string(),
-                "PRECOG-02-CCTV-DOOR".to_string(),
-            ],
+    fn program_pipeline_two_sources_use_distinct_groups() {
+        let p = program_pipeline_string(
+            &[s("A", "239.42.1.1", 5000), s("B", "239.42.1.2", 5000)],
             32,
         );
-        assert!(s.starts_with("input-selector name=sel"));
-        assert!(s.contains(r#"ndisrc ndi-name="PRECOG-01-IPHONE-STAGE""#));
-        assert!(s.contains(r#"ndisrc ndi-name="PRECOG-02-CCTV-DOOR""#));
-        assert!(s.contains("sel.sink_0"));
-        assert!(s.contains("sel.sink_1"));
-        assert!(s.ends_with("kmssink connector-id=32"));
+        assert!(p.contains("address=239.42.1.1"));
+        assert!(p.contains("address=239.42.1.2"));
+        assert!(p.contains("sel.sink_0"));
+        assert!(p.contains("sel.sink_1"));
     }
 
     #[test]
     fn preview_pipeline_zero_sources_is_black_test_pattern() {
-        let s = preview_pipeline_string(&[], 34);
-        assert!(s.starts_with("videotestsrc pattern=black is-live=true"));
-        assert!(s.contains("width=1920,height=1080"));
-        assert!(s.ends_with("kmssink connector-id=34"));
-        assert!(!s.contains("compositor"));
-        assert!(!s.contains("ndisrc"));
-    }
-
-    #[test]
-    fn preview_pipeline_one_source_uses_1x1_grid() {
-        let s = preview_pipeline_string(&["A".to_string()], 34);
-        assert!(s.starts_with("compositor name=mix background=black"));
-        assert!(s.contains("sink_0::xpos=0"));
-        assert!(s.contains("sink_0::ypos=0"));
-        assert!(s.contains("sink_0::width=1920"));
-        assert!(s.contains("sink_0::height=1080"));
+        let p = preview_pipeline_string(&[], 34);
+        assert!(p.starts_with("videotestsrc pattern=black is-live=true"));
+        assert!(!p.contains("compositor"));
     }
 
     #[test]
     fn preview_pipeline_four_sources_uses_2x2_grid() {
-        let sources: Vec<String> = (0..4).map(|i| format!("S{i}")).collect();
-        let s = preview_pipeline_string(&sources, 34);
-        assert!(s.contains("sink_0::xpos=0 sink_0::ypos=0 sink_0::width=960 sink_0::height=540"));
-        assert!(s.contains("sink_1::xpos=960 sink_1::ypos=0 sink_1::width=960 sink_1::height=540"));
-        assert!(s.contains("sink_2::xpos=0 sink_2::ypos=540 sink_2::width=960 sink_2::height=540"));
+        let sources = vec![
+            s("A", "239.42.1.1", 5000),
+            s("B", "239.42.1.2", 5000),
+            s("C", "239.42.1.3", 5000),
+            s("D", "239.42.1.4", 5000),
+        ];
+        let p = preview_pipeline_string(&sources, 34);
+        assert!(p.contains("sink_0::xpos=0 sink_0::ypos=0 sink_0::width=960 sink_0::height=540"));
         assert!(
-            s.contains("sink_3::xpos=960 sink_3::ypos=540 sink_3::width=960 sink_3::height=540")
+            p.contains("sink_3::xpos=960 sink_3::ypos=540 sink_3::width=960 sink_3::height=540")
         );
-    }
-
-    #[test]
-    fn preview_pipeline_nine_sources_uses_3x3_grid() {
-        let sources: Vec<String> = (0..9).map(|i| format!("S{i}")).collect();
-        let s = preview_pipeline_string(&sources, 34);
-        // tile is 640x360 (1920/3 by 1080/3)
-        assert!(s.contains("sink_0::xpos=0 sink_0::ypos=0 sink_0::width=640 sink_0::height=360"));
-        assert!(
-            s.contains("sink_4::xpos=640 sink_4::ypos=360 sink_4::width=640 sink_4::height=360")
-        );
-        assert!(
-            s.contains("sink_8::xpos=1280 sink_8::ypos=720 sink_8::width=640 sink_8::height=360")
-        );
-    }
-
-    #[test]
-    fn preview_pipeline_ends_with_cairo_overlay_and_kmssink() {
-        let s = preview_pipeline_string(&["A".to_string()], 34);
-        assert!(s.ends_with("mix. ! videoconvert ! cairooverlay name=tally ! videoconvert ! kmssink connector-id=34"));
+        assert!(p.ends_with(
+            "mix. ! videoconvert ! cairooverlay name=tally ! videoconvert ! kmssink connector-id=34"
+        ));
     }
 }

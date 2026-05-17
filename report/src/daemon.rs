@@ -2,19 +2,17 @@
 
 use crate::config::ReportConfig;
 use crate::mapping::assign_slots;
-use crate::naming::{display_name, is_precog_source};
-use crate::ndi_find::Discovery;
 use crate::pipeline::{
-    build_preview, build_program, select_slot, PreviewPipeline, ProgramPipeline,
+    build_preview, build_program, select_slot, PreviewPipeline, ProgramPipeline, Source,
 };
 use anyhow::Result;
 use gstreamer::prelude::*;
 use parking_lot::Mutex;
-use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::Duration;
+use temple::{Ball, Receiver as TempleReceiver, BALL_EVICTION_SECS};
 use tracing::{error, info, warn};
 
 pub struct Daemon {
@@ -23,7 +21,7 @@ pub struct Daemon {
 }
 
 struct DaemonState {
-    sources_in_order: Vec<String>,
+    sources_in_order: Vec<Source>,
     active_slot: Option<u8>,
     program: Option<ProgramPipeline>,
     preview: Option<PreviewPipeline>,
@@ -48,38 +46,41 @@ impl Daemon {
         }
     }
 
-    /// Run the daemon. Blocks the calling thread; sets up discovery + keyboard
-    /// + per-pipeline bus-watch threads. Returns Ok(()) on clean shutdown
-    /// (SIGTERM/SIGINT).
     pub fn run(self) -> Result<()> {
         gstreamer::init()?;
 
-        // Shutdown flag flipped by SIGTERM/SIGINT handlers.
         let shutdown = Arc::new(AtomicBool::new(false));
         signal_hook::flag::register(signal_hook::consts::SIGTERM, shutdown.clone())?;
         signal_hook::flag::register(signal_hook::consts::SIGINT, shutdown.clone())?;
 
-        let (src_tx, src_rx) = channel::<Vec<String>>();
+        let (src_tx, src_rx) = channel::<Vec<Source>>();
         let (key_tx, key_rx) = channel::<u8>();
         let (bus_tx, bus_rx) = channel::<BusEvent>();
 
-        let discovery = Discovery::new()?;
+        let group = self.cfg.temple_group;
+        let port = self.cfg.temple_port;
+        let eviction = Duration::from_secs(BALL_EVICTION_SECS);
         std::thread::Builder::new()
-            .name("report-discovery".into())
+            .name("report-temple-rx".into())
             .spawn(move || {
-                let mut last = BTreeSet::<String>::new();
+                let mut rx = match TempleReceiver::new(group, port, eviction) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!(error = ?e, "temple receiver init failed; thread exiting");
+                        return;
+                    }
+                };
                 loop {
-                    let raw = discovery.poll(Duration::from_secs(2));
-                    let names: BTreeSet<String> = raw
-                        .iter()
-                        .filter(|n| is_precog_source(n))
-                        .map(|n| display_name(n).to_owned())
-                        .collect();
-                    if names != last {
-                        last = names.clone();
-                        let ordered: Vec<String> = names.into_iter().collect();
-                        if src_tx.send(ordered).is_err() {
-                            break;
+                    match rx.poll(Duration::from_secs(1)) {
+                        Ok(true) => {
+                            let sources = balls_to_sources(rx.snapshot());
+                            if src_tx.send(sources).is_err() {
+                                break;
+                            }
+                        }
+                        Ok(false) => {}
+                        Err(e) => {
+                            warn!(error = ?e, "temple poll error");
                         }
                     }
                 }
@@ -99,15 +100,15 @@ impl Daemon {
 
     fn event_loop(
         &self,
-        src_rx: Receiver<Vec<String>>,
+        src_rx: Receiver<Vec<Source>>,
         key_rx: Receiver<u8>,
         bus_rx: Receiver<BusEvent>,
         bus_tx: Sender<BusEvent>,
         shutdown: Arc<AtomicBool>,
     ) -> Result<()> {
         while !shutdown.load(Ordering::Relaxed) {
-            if let Ok(names) = src_rx.recv_timeout(Duration::from_millis(50)) {
-                self.on_sources_changed(&names, &bus_tx)?;
+            if let Ok(sources) = src_rx.recv_timeout(Duration::from_millis(50)) {
+                self.on_sources_changed(sources, &bus_tx)?;
             }
             while let Ok(slot) = key_rx.try_recv() {
                 self.handle_keypress(slot)?;
@@ -142,14 +143,21 @@ impl Daemon {
         Ok(())
     }
 
-    fn on_sources_changed(&self, raw_sources: &[String], bus_tx: &Sender<BusEvent>) -> Result<()> {
-        let mapping = assign_slots(raw_sources, &self.cfg.source_slot_overrides);
+    fn on_sources_changed(
+        &self,
+        raw_sources: Vec<Source>,
+        bus_tx: &Sender<BusEvent>,
+    ) -> Result<()> {
+        let names: Vec<String> = raw_sources.iter().map(|s| s.name.clone()).collect();
+        let mapping = assign_slots(&names, &self.cfg.source_slot_overrides);
         let max = mapping.values().copied().max().unwrap_or(0);
-        let mut ordered: Vec<Option<String>> = vec![None; max as usize];
-        for (name, slot) in &mapping {
-            ordered[(*slot - 1) as usize] = Some(name.clone());
+        let mut ordered: Vec<Option<Source>> = vec![None; max as usize];
+        for src in &raw_sources {
+            if let Some(&slot) = mapping.get(&src.name) {
+                ordered[(slot - 1) as usize] = Some(src.clone());
+            }
         }
-        let new_sources: Vec<String> = ordered.into_iter().flatten().collect();
+        let new_sources: Vec<Source> = ordered.into_iter().flatten().collect();
 
         {
             let st = self.state.lock();
@@ -157,36 +165,24 @@ impl Daemon {
                 return Ok(());
             }
         }
-        info!(new = ?new_sources, "sources changed");
+        info!(new = ?new_sources.iter().map(|s| &s.name).collect::<Vec<_>>(), "sources changed");
         self.install_pipelines(&new_sources, bus_tx)
     }
 
-    /// Tear down current pipelines and rebuild with the current `sources_in_order`.
-    /// Invoked when a bus watch reports an error or EOS on either pipeline.
     fn force_rebuild(&self, bus_tx: &Sender<BusEvent>) -> Result<()> {
         let sources = self.state.lock().sources_in_order.clone();
         info!(?sources, "forced rebuild after bus event");
         self.install_pipelines(&sources, bus_tx)
     }
 
-    /// Stop any existing pipelines and install fresh ones built from `sources`.
-    /// Always lock-then-release before calling set_state(Null) — see deadlock fix.
-    fn install_pipelines(&self, sources: &[String], bus_tx: &Sender<BusEvent>) -> Result<()> {
-        // Phase 1: take old pipelines out under the lock + update state, then
-        // RELEASE before destroying old pipelines (avoid cairo tally callback
-        // deadlock).
+    fn install_pipelines(&self, sources: &[Source], bus_tx: &Sender<BusEvent>) -> Result<()> {
         let (old_program, old_preview) = {
             let mut st = self.state.lock();
             st.sources_in_order = sources.to_vec();
-            if sources.is_empty() {
-                st.active_slot = None;
-            } else {
-                st.active_slot = Some(1);
-            }
+            st.active_slot = if sources.is_empty() { None } else { Some(1) };
             (st.program.take(), st.preview.take())
         };
 
-        // Phase 2: stop old pipelines outside the lock.
         if let Some(p) = old_program {
             let _ = p.pipeline.set_state(gstreamer::State::Null);
         }
@@ -194,7 +190,6 @@ impl Daemon {
             let _ = p.pipeline.set_state(gstreamer::State::Null);
         }
 
-        // Phase 3: build new pipelines.
         let state_for_tally = self.state.clone();
         let preview = build_preview(
             sources,
@@ -229,11 +224,7 @@ impl Daemon {
         if (slot as usize) > st.sources_in_order.len() || slot == 0 {
             return Ok(());
         }
-        info!(
-            slot,
-            source = %st.sources_in_order[(slot - 1) as usize],
-            "cut"
-        );
+        info!(slot, source = %st.sources_in_order[(slot - 1) as usize].name, "cut");
         st.active_slot = Some(slot);
         if let Some(program) = st.program.as_ref() {
             select_slot(&program.selector, (slot - 1) as usize)?;
@@ -242,9 +233,26 @@ impl Daemon {
     }
 }
 
-/// Spawn a thread that drains the pipeline's bus and forwards Error/EOS to the
-/// daemon's event loop. Thread exits when the pipeline is destroyed (bus iter
-/// terminates on Null state).
+/// Convert balls into pipeline-ready Source records, keeping only PRECOG-named
+/// entries (defense in depth — non-PRECOG balls should not reach this channel
+/// in production).
+fn balls_to_sources(balls: Vec<Ball>) -> Vec<Source> {
+    balls
+        .into_iter()
+        .filter_map(|b| match b {
+            Ball::V1(v) if v.name.starts_with("PRECOG-") => Some(Source {
+                name: v.name,
+                mcast: v.rtp.mcast,
+                port: v.rtp.port,
+                payload_type: v.rtp.pt,
+                clock_rate: v.rtp.clock_rate,
+                encoding_name: v.rtp.encoding_name,
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
 fn spawn_bus_watch(
     which: &'static str,
     pipeline: &gstreamer::Pipeline,
@@ -275,4 +283,46 @@ fn spawn_bus_watch(
             }
         })?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use temple::{BallV1, RtpInfo, VideoInfo};
+
+    fn ball(name: &str, mcast: &str) -> Ball {
+        Ball::V1(BallV1 {
+            name: name.into(),
+            host: "10.0.0.1".into(),
+            rtp: RtpInfo {
+                mcast: mcast.into(),
+                port: 5000,
+                pt: 96,
+                clock_rate: 90000,
+                encoding_name: "H264".into(),
+            },
+            video: VideoInfo {
+                width: 1920,
+                height: 1080,
+                framerate: "30/1".into(),
+            },
+        })
+    }
+
+    #[test]
+    fn balls_to_sources_keeps_precog_names() {
+        let sources = balls_to_sources(vec![
+            ball("PRECOG-01-X", "239.42.1.1"),
+            ball("OTHER-DEVICE", "239.42.1.2"),
+        ]);
+        assert_eq!(sources.len(), 1);
+        assert_eq!(sources[0].name, "PRECOG-01-X");
+        assert_eq!(sources[0].mcast, "239.42.1.1");
+        assert_eq!(sources[0].payload_type, 96);
+    }
+
+    #[test]
+    fn balls_to_sources_empty_when_no_balls() {
+        assert!(balls_to_sources(Vec::new()).is_empty());
+    }
 }
