@@ -1,14 +1,16 @@
-//! PRECOG — analog CCTV → NDI encoder daemon.
+//! PRECOG — camera → H.264/RTP/UDP-multicast encoder daemon.
 
 mod config;
 
 use anyhow::{Context, Result};
 use config::PrecogConfig;
+use temple::{Ball, BallV1, RtpInfo, Sender as BallSender, VideoInfo, BALL_PERIOD_SECS};
 use gstreamer::prelude::*;
 use std::env;
 use std::fs;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{error, info, warn};
 
 fn main() -> Result<()> {
@@ -36,10 +38,11 @@ fn main() -> Result<()> {
 
     pipeline.set_state(gstreamer::State::Playing)?;
 
-    // Shutdown flag flipped by SIGTERM/SIGINT handlers.
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, shutdown.clone())?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, shutdown.clone())?;
+
+    spawn_ball_thread(&cfg, shutdown.clone())?;
 
     let bus = pipeline.bus().context("pipeline bus")?;
     while !shutdown.load(Ordering::Relaxed) {
@@ -72,7 +75,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn build_pipeline_string(cfg: &PrecogConfig) -> String {
+/// Build the gst-launch pipeline string. Software H.264 encode via `x264enc`
+/// (Pi 5 has no HW H.264 encoder; Pi 4 did, Pi 5 dropped it).
+/// `tune=zerolatency speed-preset=ultrafast` + `key-int-max=30` (1s IDR).
+pub fn build_pipeline_string(cfg: &PrecogConfig) -> String {
     let caps = format!(
         "video/x-raw,format={fmt},width={w},height={h},framerate={fr}",
         fmt = cfg.format,
@@ -80,21 +86,20 @@ fn build_pipeline_string(cfg: &PrecogConfig) -> String {
         h = cfg.height,
         fr = cfg.framerate
     );
-    let name_escaped = cfg.ndi_name.replace('\\', "\\\\").replace('"', "\\\"");
     let src = source_element_str(&cfg.device);
-    if cfg.use_combiner {
-        format!(
-            r#"{src} ! {caps} ! videoconvert ! ndisinkcombiner name=c c.src ! ndisink ndi-name="{name_escaped}""#
-        )
-    } else {
-        format!(r#"{src} ! {caps} ! videoconvert ! ndisink ndi-name="{name_escaped}""#)
-    }
+    let bitrate = cfg.bitrate_kbps;
+    let mcast = cfg.rtp_mcast;
+    let port = cfg.rtp_port;
+    format!(
+        "{src} ! {caps} ! videoconvert ! \
+         x264enc tune=zerolatency speed-preset=ultrafast bitrate={bitrate} key-int-max=30 ! \
+         video/x-h264,profile=baseline ! \
+         h264parse config-interval=1 ! \
+         rtph264pay pt=96 config-interval=1 mtu=1400 ! \
+         udpsink host={mcast} port={port} auto-multicast=true ttl-mc=1 sync=false async=false"
+    )
 }
 
-/// Platform-specific video source element. Linux uses V4L2 with a device path;
-/// macOS (dev only) uses AVFoundation with a numeric device index parsed from
-/// `device` (fallback 0). The mac branch exists so the precog binary can be
-/// smoke-tested against the host webcam; production deploys are Pi-only.
 #[cfg(target_os = "linux")]
 fn source_element_str(device: &str) -> String {
     format!(r#"v4l2src device="{device}""#)
@@ -106,14 +111,43 @@ fn source_element_str(device: &str) -> String {
     format!("avfvideosrc device-index={idx}")
 }
 
-/// Install a panic hook that logs via tracing then exits with code 101 so
-/// `systemd Restart=on-failure` fires. Without this, a panic on a worker
-/// thread silently dies and the daemon keeps running in a degraded state.
+/// Spawn a thread that emits a `Ball::V1` every `BALL_PERIOD_SECS`.
+fn spawn_ball_thread(cfg: &PrecogConfig, shutdown: Arc<AtomicBool>) -> Result<()> {
+    let ball = Ball::V1(BallV1 {
+        name: cfg.source_name.clone(),
+        host: cfg.host.clone(),
+        rtp: RtpInfo {
+            mcast: cfg.rtp_mcast.to_string(),
+            port: cfg.rtp_port,
+            pt: 96,
+            clock_rate: 90000,
+            encoding_name: "H264".into(),
+        },
+        video: VideoInfo {
+            width: cfg.width,
+            height: cfg.height,
+            framerate: cfg.framerate.clone(),
+        },
+    });
+    let sender = BallSender::new(cfg.temple_group, cfg.temple_port)
+        .context("create ball sender")?;
+    std::thread::Builder::new()
+        .name("precog-ball-tx".into())
+        .spawn(move || {
+            while !shutdown.load(Ordering::Relaxed) {
+                if let Err(e) = sender.send(&ball) {
+                    warn!(error = ?e, "ball send failed");
+                }
+                std::thread::sleep(Duration::from_secs(BALL_PERIOD_SECS));
+            }
+        })
+        .context("spawn ball thread")?;
+    Ok(())
+}
+
 fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let location = info
-            .location()
-            .map(|l| format!("{}:{}", l.file(), l.line()));
+        let location = info.location().map(|l| format!("{}:{}", l.file(), l.line()));
         let payload = info
             .payload()
             .downcast_ref::<&str>()
@@ -148,69 +182,55 @@ mod tests {
     use super::{build_pipeline_string, source_element_str};
     use crate::config::PrecogConfig;
 
-    fn cfg(use_combiner: bool, device: &str) -> PrecogConfig {
-        let raw = format!(
-            r#"
-ndi_name = "PRECOG-99-MAC-TEST"
-device = "{device}"
+    fn cfg() -> PrecogConfig {
+        let raw = r#"
+source_name = "PRECOG-99-TEST"
+device = "/dev/video0"
 format = "UYVY"
-width = 1280
-height = 720
+width = 1920
+height = 1080
 framerate = "30/1"
-use_combiner = {use_combiner}
-"#
-        );
-        PrecogConfig::from_toml(&raw).unwrap()
+rtp_mcast = "239.42.1.1"
+rtp_port = 5000
+"#;
+        PrecogConfig::from_toml(raw).unwrap()
     }
 
     #[cfg(target_os = "linux")]
     #[test]
     fn linux_uses_v4l2src_with_device_path() {
-        let s = source_element_str("/dev/video0");
-        assert_eq!(s, r#"v4l2src device="/dev/video0""#);
+        assert_eq!(source_element_str("/dev/video0"), r#"v4l2src device="/dev/video0""#);
     }
 
     #[cfg(target_os = "macos")]
     #[test]
     fn macos_uses_avfvideosrc_with_index() {
         assert_eq!(source_element_str("0"), "avfvideosrc device-index=0");
-        assert_eq!(source_element_str("2"), "avfvideosrc device-index=2");
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn macos_falls_back_to_zero_for_non_numeric_device() {
-        assert_eq!(
-            source_element_str("/dev/video0"),
-            "avfvideosrc device-index=0"
-        );
     }
 
     #[test]
-    fn pipeline_uses_combiner_when_set() {
-        let s = build_pipeline_string(&cfg(true, "0"));
-        assert!(s.contains("ndisinkcombiner name=c c.src ! ndisink"));
+    fn pipeline_contains_x264enc_with_zerolatency() {
+        let s = build_pipeline_string(&cfg());
+        assert!(s.contains("x264enc tune=zerolatency speed-preset=ultrafast bitrate=4000"));
     }
 
     #[test]
-    fn pipeline_skips_combiner_when_unset() {
-        let s = build_pipeline_string(&cfg(false, "0"));
+    fn pipeline_contains_rtph264pay_with_pt96() {
+        let s = build_pipeline_string(&cfg());
+        assert!(s.contains("rtph264pay pt=96 config-interval=1 mtu=1400"));
+    }
+
+    #[test]
+    fn pipeline_targets_configured_mcast_and_port() {
+        let s = build_pipeline_string(&cfg());
+        assert!(s.contains("udpsink host=239.42.1.1 port=5000"));
+        assert!(s.contains("auto-multicast=true ttl-mc=1"));
+    }
+
+    #[test]
+    fn pipeline_has_no_ndi_references() {
+        let s = build_pipeline_string(&cfg());
+        assert!(!s.contains("ndisink"));
         assert!(!s.contains("ndisinkcombiner"));
-        assert!(s.contains("videoconvert ! ndisink"));
-    }
-
-    #[test]
-    fn pipeline_escapes_quotes_and_backslashes_in_ndi_name() {
-        let raw = r#"
-ndi_name = "BAD\"NAME"
-device = "0"
-format = "UYVY"
-width = 1280
-height = 720
-framerate = "30/1"
-"#;
-        let c = PrecogConfig::from_toml(raw).unwrap();
-        let s = build_pipeline_string(&c);
-        assert!(s.contains(r#"ndi-name="BAD\"NAME""#));
     }
 }
