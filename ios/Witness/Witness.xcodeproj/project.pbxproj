@@ -8,50 +8,50 @@
 
 /* Begin PBXBuildFile section */
 		0FB7896F2BDD5EB828601B1C /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BBC47FEE5C9360F4C95D2B1 /* AVFoundation.framework */; };
-		139BB67DD820A8E550C07F31 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420D02798B6688B99E7F1766 /* AppModel.swift */; };
-		1C7EA774F119E6DB8579F135 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5840DDA4E3B615B5898918D /* AppSettings.swift */; };
-		1E59DAE59EEFD62199A9E39C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2BE636A69A5146352973F9 /* SettingsView.swift */; };
-		1EB6B11713D222575D38C7BF /* RegistrationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BFBA19E9A1ED9DF87D99FEF /* RegistrationClient.swift */; };
+		1E4D96D96204CFA561893108 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E36B2431BE7371F726F22F8 /* SettingsView.swift */; };
+		2ABA43AEBBA3ECD6CE52D0A5 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54834F6A9FB01134B40BF4C0 /* CameraPreview.swift */; };
 		2F047F43F7EC5EE24F81372A /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3595DC85FDD3182A768EC143 /* UIKit.framework */; };
-		44AC093F285F16F9D24E5E5E /* RtpSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91974FBA5368AD0A67560DEE /* RtpSender.swift */; };
-		56C7D1FE0C54CFCEE10893EF /* CaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8877CCDB31765FE2A8B850B /* CaptureSession.swift */; };
+		41EF7A0528EA715970FC36EC /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90A5A080711C4B04DD211FF /* ContentView.swift */; };
+		42411EE9D72FD05A1CF11579 /* RegistrationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A01A0478C48EFFF61BB8E8A /* RegistrationClient.swift */; };
+		43184878E5C8663706551DCA /* AckReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB97889A75AC4C42BB6BD64E /* AckReceiver.swift */; };
+		45B9A2208B3D203844DA7B95 /* RtpPacketizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D5F3DB23AB36C3650CE78D /* RtpPacketizer.swift */; };
+		46898164C97109B8289BBFC0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39BE72841C8C03A02514D00E /* AppSettings.swift */; };
+		53C49ABE480B9299F37F9FC3 /* RtpSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EFA65AC2D73A8097127A903 /* RtpSender.swift */; };
 		60CAA00E6CB9BEC4E4E613C2 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FD9FED588752E4D850311C6D /* VideoToolbox.framework */; };
-		659DF947BB95EC1CD76228C3 /* ReportDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56A94DB1E53A11C17AFBF5A /* ReportDiscovery.swift */; };
-		67CB24E29DD733B3C3D240D9 /* BonjourPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3342A5605E5CD3ADC446272 /* BonjourPublisher.swift */; };
-		8050A735898C0126BF70C840 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6477FB1077091D8F503906F8 /* CameraPreview.swift */; };
+		86C85E235BFCA96EB2E036DA /* StageStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBA87A18CEFC89BD65D3A85 /* StageStatusView.swift */; };
+		87F7DA2E026837E1A1437AEB /* ReportDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E0AE4B3877FFBAB4B6DCDA6 /* ReportDiscovery.swift */; };
+		88B68617596D88091F5D64D7 /* H264Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DA57E5CE5F0FDB9873CA9F /* H264Encoder.swift */; };
+		8C0BEC3102610EF3062C729B /* CaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08FB0CDB72C0B369D1A34192 /* CaptureSession.swift */; };
 		91D4068CB2997FD5854B17D1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5F3EA70355F14419F76BDA76 /* CoreVideo.framework */; };
-		B92C6259DA4E1E34822F84F5 /* PrecogCamApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECEF0FCD1681364C59D93B /* PrecogCamApp.swift */; };
+		93522736B95291B0F8DC9DA2 /* WitnessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8997FA9760B115038B506E /* WitnessApp.swift */; };
 		BB3A1DBC35C84EFE792C1A61 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0ED3A1DAFB6146A021C939B4 /* CoreMedia.framework */; };
-		C03AE9E8377FF210670B95D4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2F9FAF93DB12AF73442338 /* ContentView.swift */; };
-		CFFC987EF5A9E46B715EFC93 /* H264Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741D604447A383574CD6CBCA /* H264Encoder.swift */; };
-		DA159324B3EA0DEC3FBC7F1E /* StageStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B451EBC6F83642790B3C068 /* StageStatusView.swift */; };
-		E0409ED78A85F054F6D278E5 /* RtpPacketizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE534CE26FB412D767B2360 /* RtpPacketizer.swift */; };
-		F6A3A83D867327B45172DBE5 /* AckReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62EDCD11FD90ED666444E66A /* AckReceiver.swift */; };
+		FD567A9C0DFC980E5D4078C8 /* BonjourPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EC44A28E0039011EC0BFC6 /* BonjourPublisher.swift */; };
+		FD8746838B8C41622863FD02 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FBABAE9C83D383B85915672 /* AppModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		003C9498EA506F48F2E4ECF9 /* Witness.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Witness.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		08FB0CDB72C0B369D1A34192 /* CaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
 		0ED3A1DAFB6146A021C939B4 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
-		1AECEF0FCD1681364C59D93B /* PrecogCamApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrecogCamApp.swift; sourceTree = "<group>"; };
-		2B451EBC6F83642790B3C068 /* StageStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageStatusView.swift; sourceTree = "<group>"; };
+		1F8997FA9760B115038B506E /* WitnessApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WitnessApp.swift; sourceTree = "<group>"; };
+		25DA57E5CE5F0FDB9873CA9F /* H264Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Encoder.swift; sourceTree = "<group>"; };
+		29EC44A28E0039011EC0BFC6 /* BonjourPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BonjourPublisher.swift; sourceTree = "<group>"; };
+		2A01A0478C48EFFF61BB8E8A /* RegistrationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationClient.swift; sourceTree = "<group>"; };
 		2BBC47FEE5C9360F4C95D2B1 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
-		2C2BE636A69A5146352973F9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		2FBABAE9C83D383B85915672 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		3595DC85FDD3182A768EC143 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
-		420D02798B6688B99E7F1766 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
-		4D2F9FAF93DB12AF73442338 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		39BE72841C8C03A02514D00E /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		3E0AE4B3877FFBAB4B6DCDA6 /* ReportDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDiscovery.swift; sourceTree = "<group>"; };
+		3E36B2431BE7371F726F22F8 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4EFA65AC2D73A8097127A903 /* RtpSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RtpSender.swift; sourceTree = "<group>"; };
+		54834F6A9FB01134B40BF4C0 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
 		5F3EA70355F14419F76BDA76 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
-		62EDCD11FD90ED666444E66A /* AckReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AckReceiver.swift; sourceTree = "<group>"; };
-		6477FB1077091D8F503906F8 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
-		741D604447A383574CD6CBCA /* H264Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Encoder.swift; sourceTree = "<group>"; };
-		91974FBA5368AD0A67560DEE /* RtpSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RtpSender.swift; sourceTree = "<group>"; };
-		9BFBA19E9A1ED9DF87D99FEF /* RegistrationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationClient.swift; sourceTree = "<group>"; };
-		A2A101DA0C3AB6A5294A0DC7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		C56A94DB1E53A11C17AFBF5A /* ReportDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDiscovery.swift; sourceTree = "<group>"; };
-		CFE534CE26FB412D767B2360 /* RtpPacketizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RtpPacketizer.swift; sourceTree = "<group>"; };
-		D3342A5605E5CD3ADC446272 /* BonjourPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BonjourPublisher.swift; sourceTree = "<group>"; };
-		D5840DDA4E3B615B5898918D /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		E8877CCDB31765FE2A8B850B /* CaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
+		7A155D1F24DDB79ABBAEE9BE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C5D5F3DB23AB36C3650CE78D /* RtpPacketizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RtpPacketizer.swift; sourceTree = "<group>"; };
+		C90A5A080711C4B04DD211FF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		CB97889A75AC4C42BB6BD64E /* AckReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AckReceiver.swift; sourceTree = "<group>"; };
 		FD9FED588752E4D850311C6D /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
+		FFBA87A18CEFC89BD65D3A85 /* StageStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageStatusView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,18 +70,53 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		3715AF1F4AFE24817D388826 /* Encoder */ = {
+		1FCD0BE5138E9BAFAA5C4B0C /* Encoder */ = {
 			isa = PBXGroup;
 			children = (
-				741D604447A383574CD6CBCA /* H264Encoder.swift */,
+				25DA57E5CE5F0FDB9873CA9F /* H264Encoder.swift */,
 			);
 			path = Encoder;
 			sourceTree = "<group>";
 		};
-		5313130DEF202BCAEFFC1088 /* Capture */ = {
+		5D26D896382E9B55A14C1DDF /* Witness */ = {
 			isa = PBXGroup;
 			children = (
-				E8877CCDB31765FE2A8B850B /* CaptureSession.swift */,
+				7A155D1F24DDB79ABBAEE9BE /* Info.plist */,
+				1F8997FA9760B115038B506E /* WitnessApp.swift */,
+				7ACD1C912E6E9D600F621713 /* Capture */,
+				1FCD0BE5138E9BAFAA5C4B0C /* Encoder */,
+				8B4A3E07F50CD0A411C89768 /* Network */,
+				5DF845E1A017147D62DD5309 /* RTP */,
+				7134A5AB3BB41FD0DF3BAE0F /* UI */,
+				F2F83BA490A877389ADAE3FD /* Util */,
+			);
+			path = Witness;
+			sourceTree = "<group>";
+		};
+		5DF845E1A017147D62DD5309 /* RTP */ = {
+			isa = PBXGroup;
+			children = (
+				C5D5F3DB23AB36C3650CE78D /* RtpPacketizer.swift */,
+				4EFA65AC2D73A8097127A903 /* RtpSender.swift */,
+			);
+			path = RTP;
+			sourceTree = "<group>";
+		};
+		7134A5AB3BB41FD0DF3BAE0F /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				54834F6A9FB01134B40BF4C0 /* CameraPreview.swift */,
+				C90A5A080711C4B04DD211FF /* ContentView.swift */,
+				3E36B2431BE7371F726F22F8 /* SettingsView.swift */,
+				FFBA87A18CEFC89BD65D3A85 /* StageStatusView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		7ACD1C912E6E9D600F621713 /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				08FB0CDB72C0B369D1A34192 /* CaptureSession.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -89,28 +124,21 @@
 		8355A98CE88B93018DD2A824 = {
 			isa = PBXGroup;
 			children = (
-				F4DD54CBE5AB205CE75F581B /* PrecogCam */,
+				5D26D896382E9B55A14C1DDF /* Witness */,
 				DC08A84F6B0410C86E130CE5 /* Frameworks */,
 				98639BA6528D395635163C41 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		91DB3CEA615E696CE3C57DBD /* RTP */ = {
+		8B4A3E07F50CD0A411C89768 /* Network */ = {
 			isa = PBXGroup;
 			children = (
-				CFE534CE26FB412D767B2360 /* RtpPacketizer.swift */,
-				91974FBA5368AD0A67560DEE /* RtpSender.swift */,
+				CB97889A75AC4C42BB6BD64E /* AckReceiver.swift */,
+				29EC44A28E0039011EC0BFC6 /* BonjourPublisher.swift */,
+				2A01A0478C48EFFF61BB8E8A /* RegistrationClient.swift */,
+				3E0AE4B3877FFBAB4B6DCDA6 /* ReportDiscovery.swift */,
 			);
-			path = RTP;
-			sourceTree = "<group>";
-		};
-		98176D697CC3A3ACD0996667 /* Util */ = {
-			isa = PBXGroup;
-			children = (
-				420D02798B6688B99E7F1766 /* AppModel.swift */,
-				D5840DDA4E3B615B5898918D /* AppSettings.swift */,
-			);
-			path = Util;
+			path = Network;
 			sourceTree = "<group>";
 		};
 		98639BA6528D395635163C41 /* Products */ = {
@@ -119,17 +147,6 @@
 				003C9498EA506F48F2E4ECF9 /* Witness.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		B8FCAB51D1ABE1F7A6F6E1A3 /* UI */ = {
-			isa = PBXGroup;
-			children = (
-				6477FB1077091D8F503906F8 /* CameraPreview.swift */,
-				4D2F9FAF93DB12AF73442338 /* ContentView.swift */,
-				2C2BE636A69A5146352973F9 /* SettingsView.swift */,
-				2B451EBC6F83642790B3C068 /* StageStatusView.swift */,
-			);
-			path = UI;
 			sourceTree = "<group>";
 		};
 		DC08A84F6B0410C86E130CE5 /* Frameworks */ = {
@@ -144,30 +161,13 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		F4DD54CBE5AB205CE75F581B /* PrecogCam */ = {
+		F2F83BA490A877389ADAE3FD /* Util */ = {
 			isa = PBXGroup;
 			children = (
-				A2A101DA0C3AB6A5294A0DC7 /* Info.plist */,
-				1AECEF0FCD1681364C59D93B /* PrecogCamApp.swift */,
-				5313130DEF202BCAEFFC1088 /* Capture */,
-				3715AF1F4AFE24817D388826 /* Encoder */,
-				FD8BA56CECED21CAD364E125 /* Network */,
-				91DB3CEA615E696CE3C57DBD /* RTP */,
-				B8FCAB51D1ABE1F7A6F6E1A3 /* UI */,
-				98176D697CC3A3ACD0996667 /* Util */,
+				2FBABAE9C83D383B85915672 /* AppModel.swift */,
+				39BE72841C8C03A02514D00E /* AppSettings.swift */,
 			);
-			path = PrecogCam;
-			sourceTree = "<group>";
-		};
-		FD8BA56CECED21CAD364E125 /* Network */ = {
-			isa = PBXGroup;
-			children = (
-				62EDCD11FD90ED666444E66A /* AckReceiver.swift */,
-				D3342A5605E5CD3ADC446272 /* BonjourPublisher.swift */,
-				9BFBA19E9A1ED9DF87D99FEF /* RegistrationClient.swift */,
-				C56A94DB1E53A11C17AFBF5A /* ReportDiscovery.swift */,
-			);
-			path = Network;
+			path = Util;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -229,21 +229,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F6A3A83D867327B45172DBE5 /* AckReceiver.swift in Sources */,
-				139BB67DD820A8E550C07F31 /* AppModel.swift in Sources */,
-				1C7EA774F119E6DB8579F135 /* AppSettings.swift in Sources */,
-				67CB24E29DD733B3C3D240D9 /* BonjourPublisher.swift in Sources */,
-				8050A735898C0126BF70C840 /* CameraPreview.swift in Sources */,
-				56C7D1FE0C54CFCEE10893EF /* CaptureSession.swift in Sources */,
-				C03AE9E8377FF210670B95D4 /* ContentView.swift in Sources */,
-				CFFC987EF5A9E46B715EFC93 /* H264Encoder.swift in Sources */,
-				B92C6259DA4E1E34822F84F5 /* PrecogCamApp.swift in Sources */,
-				1EB6B11713D222575D38C7BF /* RegistrationClient.swift in Sources */,
-				659DF947BB95EC1CD76228C3 /* ReportDiscovery.swift in Sources */,
-				E0409ED78A85F054F6D278E5 /* RtpPacketizer.swift in Sources */,
-				44AC093F285F16F9D24E5E5E /* RtpSender.swift in Sources */,
-				1E59DAE59EEFD62199A9E39C /* SettingsView.swift in Sources */,
-				DA159324B3EA0DEC3FBC7F1E /* StageStatusView.swift in Sources */,
+				43184878E5C8663706551DCA /* AckReceiver.swift in Sources */,
+				FD8746838B8C41622863FD02 /* AppModel.swift in Sources */,
+				46898164C97109B8289BBFC0 /* AppSettings.swift in Sources */,
+				FD567A9C0DFC980E5D4078C8 /* BonjourPublisher.swift in Sources */,
+				2ABA43AEBBA3ECD6CE52D0A5 /* CameraPreview.swift in Sources */,
+				8C0BEC3102610EF3062C729B /* CaptureSession.swift in Sources */,
+				41EF7A0528EA715970FC36EC /* ContentView.swift in Sources */,
+				88B68617596D88091F5D64D7 /* H264Encoder.swift in Sources */,
+				42411EE9D72FD05A1CF11579 /* RegistrationClient.swift in Sources */,
+				87F7DA2E026837E1A1437AEB /* ReportDiscovery.swift in Sources */,
+				45B9A2208B3D203844DA7B95 /* RtpPacketizer.swift in Sources */,
+				53C49ABE480B9299F37F9FC3 /* RtpSender.swift in Sources */,
+				1E4D96D96204CFA561893108 /* SettingsView.swift in Sources */,
+				86C85E235BFCA96EB2E036DA /* StageStatusView.swift in Sources */,
+				93522736B95291B0F8DC9DA2 /* WitnessApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -257,7 +257,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
-				INFOPLIST_FILE = PrecogCam/Info.plist;
+				INFOPLIST_FILE = Witness/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -402,7 +402,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
-				INFOPLIST_FILE = PrecogCam/Info.plist;
+				INFOPLIST_FILE = Witness/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

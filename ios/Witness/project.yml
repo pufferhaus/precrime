@@ -20,9 +20,9 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: PrecogCam
+      - path: Witness
     info:
-      path: PrecogCam/Info.plist
+      path: Witness/Info.plist
       properties:
         CFBundleDisplayName: WITNESS
         CFBundleShortVersionString: $(MARKETING_VERSION)
