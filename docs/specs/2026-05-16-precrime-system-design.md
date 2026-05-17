@@ -1,3 +1,5 @@
+> **STATUS — SUPERSEDED 2026-05-17:** NDI transport replaced by RTP+multicast (H.264 over UDP) + TEMPLE ball discovery. See `docs/plans/2026-05-17-rtp-multicast-migration.md` for the current architecture. NDI-specific details below are retained for historical context only.
+
 # PRECRIME — System Design Spec
 
 **Date:** 2026-05-16
