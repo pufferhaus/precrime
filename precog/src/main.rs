@@ -4,13 +4,13 @@ mod config;
 
 use anyhow::{Context, Result};
 use config::PrecogConfig;
-use temple::{Ball, BallV1, RtpInfo, Sender as BallSender, VideoInfo, BALL_PERIOD_SECS};
 use gstreamer::prelude::*;
 use std::env;
 use std::fs;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use temple::{Ball, BallV1, RtpInfo, Sender as BallSender, VideoInfo, BALL_PERIOD_SECS};
 use tracing::{error, info, warn};
 
 fn main() -> Result<()> {
@@ -131,8 +131,8 @@ fn spawn_ball_thread(cfg: &PrecogConfig, shutdown: Arc<AtomicBool>) -> Result<()
             framerate: cfg.framerate.clone(),
         },
     });
-    let sender = BallSender::new(cfg.temple_group, cfg.temple_port)
-        .context("create ball sender")?;
+    let sender =
+        BallSender::new(cfg.temple_group, cfg.temple_port).context("create ball sender")?;
     std::thread::Builder::new()
         .name("precog-ball-tx".into())
         .spawn(move || {
@@ -149,7 +149,9 @@ fn spawn_ball_thread(cfg: &PrecogConfig, shutdown: Arc<AtomicBool>) -> Result<()
 
 fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let location = info.location().map(|l| format!("{}:{}", l.file(), l.line()));
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()));
         let payload = info
             .payload()
             .downcast_ref::<&str>()
@@ -201,7 +203,10 @@ rtp_port = 5000
     #[cfg(target_os = "linux")]
     #[test]
     fn linux_uses_v4l2src_with_device_path() {
-        assert_eq!(source_element_str("/dev/video0"), r#"v4l2src device="/dev/video0""#);
+        assert_eq!(
+            source_element_str("/dev/video0"),
+            r#"v4l2src device="/dev/video0""#
+        );
     }
 
     #[cfg(target_os = "macos")]

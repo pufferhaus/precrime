@@ -35,10 +35,18 @@ pub struct PrecogConfig {
     pub host: String,
 }
 
-fn default_bitrate_kbps() -> u32 { 4000 }
-fn default_temple_group() -> Ipv4Addr { "239.42.0.1".parse().unwrap() }
-fn default_temple_port() -> u16 { 9999 }
-fn default_host() -> String { "0.0.0.0".into() }
+fn default_bitrate_kbps() -> u32 {
+    4000
+}
+fn default_temple_group() -> Ipv4Addr {
+    "239.42.0.1".parse().unwrap()
+}
+fn default_temple_port() -> u16 {
+    9999
+}
+fn default_host() -> String {
+    "0.0.0.0".into()
+}
 
 impl PrecogConfig {
     pub fn from_toml(raw: &str) -> Result<Self, toml::de::Error> {
