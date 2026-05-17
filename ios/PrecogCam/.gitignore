@@ -1,0 +1,6 @@
+PrecogCam.xcodeproj
+PrecogCam.xcworkspace
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
