@@ -9,8 +9,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # Stub libndi linking — CI doesn't have the NewTek SDK installed.
-  PRECRIME_NDI_STUB: "1"
   # Pedantic clippy lints are configured as warn in workspace Cargo.toml.
   # We don't gate CI on them (too noisy) — they show in the run output but
   # don't fail the build. Real rustc warnings still surface.

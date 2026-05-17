@@ -23,6 +23,8 @@ signal-hook = "0.3"
 gstreamer = "0.23"
 gstreamer-video = "0.23"
 cairo-rs = { version = "0.20", features = ["use_glib"] }
+temple = { path = "../temple" }
+socket2 = { version = "0.5", features = ["all"] }
 
 [dev-dependencies]
 pretty_assertions = "1"
