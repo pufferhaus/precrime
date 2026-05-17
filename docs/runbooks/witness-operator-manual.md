@@ -120,7 +120,47 @@ Stream continues running. Camera is still active — iOS requires the display to
 
 **Exit:** double-tap anywhere on the screen.
 
-**Tip:** Combine with iOS Guided Access (Settings → Accessibility → Guided Access) to lock the phone in stage mode for the full show — prevents accidental button presses and keeps the display from turning off.
+---
+
+## Kiosk mode (Guided Access)
+
+Kiosk mode locks the phone to WITNESS — home button, App Switcher, Control Centre, and notifications are all disabled. Ideal for dedicated show phones.
+
+### Prerequisites (one-time setup per phone)
+
+1. **Settings → Accessibility → Guided Access → toggle ON**
+2. **Passcode Settings → Set Guided Access Passcode** — choose a PIN you'll remember. This is the only way to exit kiosk mode.
+3. Optionally: enable **Time Limits** if you want an auto-timeout (not recommended for show use).
+
+### Enabling kiosk mode in WITNESS
+
+1. Open WITNESS → **⚙ Settings → Kiosk mode → toggle ON**
+2. Close settings. An orange banner appears above the bottom bar:
+
+```
+🔒 KIOSK MODE
+   Triple-click side button to activate
+```
+
+3. **Triple-click the side button** (iPhone X and later: right-side button; older: home button)
+4. iOS shows the Guided Access start screen — tap **Start**
+5. The orange banner disappears. The phone is now locked to WITNESS.
+
+On every subsequent launch with kiosk mode enabled, the orange banner reappears until you triple-click to activate Guided Access again. This is an iOS limitation — programmatic activation requires an Apple enterprise entitlement not available on standard developer accounts.
+
+### Exiting kiosk mode
+
+1. **Triple-click the side button**
+2. Enter your Guided Access passcode
+3. Tap **End** in the top-left corner
+
+### Show-day workflow
+
+1. Configure phone once (source name, resolution, kiosk mode on, Guided Access passcode set)
+2. Each show: open WITNESS → orange banner appears → triple-click → Start → locked
+3. Phone stays locked until you explicitly end the session
+
+**Forgotten passcode:** if the Guided Access passcode is lost, the only recovery is Screen Time passcode (if set) or a full device restore. Write it down somewhere safe.
 
 ---
 
@@ -137,6 +177,7 @@ Open via **⚙** in the bottom bar.
 | Fallback host | Leave blank. Set only if REPORT has no Bonjour support (e.g. testing with `nc`). |
 | Zoom / EV | Same as main screen sliders. |
 | Stage mode | Same as ☾ button. |
+| Kiosk mode | Shows orange banner on launch; triple-click to lock. See Kiosk mode section. |
 
 **Apply:** close the sheet — settings take effect. Stream-affecting changes (resolution, fps, bitrate, camera side) restart the stream automatically.
 
@@ -191,22 +232,32 @@ WITNESS will discover it, register, and reach LIVE within ~5s. Mock shows packet
 ## Quick reference card
 
 ```
-CONTROLS          ACTION
-──────────────    ──────────────────────────────
-Right slider      Zoom (1×–10×)
-Left slider       Exposure (-EV to +EV)
-AWB/WB■ button    White balance auto / locked
-Tap viewfinder    Focus lock (tap again to release)
-↩︎ button          Flip camera (brief stream drop)
-☾ button          Enter stage mode
-⚙ button          Settings sheet
-Double-tap        Exit stage mode
+CONTROLS             ACTION
+───────────────────  ──────────────────────────────────────
+Right slider         Zoom (1×–10×)
+Left slider          Exposure (-EV to +EV)
+AWB/WB■ button       White balance auto / locked
+Tap viewfinder       Focus lock — auto-releases if subject moves
+Tap again            Return to continuous autofocus
+↩︎ button             Flip camera (brief stream drop)
+☾ button             Enter stage mode
+⚙ button             Settings sheet
+Double-tap           Exit stage mode
+Triple-click (side)  Activate/exit Guided Access (kiosk mode)
 
-STATES            MEANING
-──────────────    ──────────────────────────────
-SEARCHING ·       Looking for REPORT on network
-CONNECTING ·      Registering with REPORT
-STREAMING ●       Sending RTP, no ack yet
-LIVE ●            Fully connected, REPORT receiving
-LOST ⚠            Ack timeout — auto-reconnecting
+STATES               MEANING
+───────────────────  ──────────────────────────────────────
+SEARCHING ·          Looking for REPORT on network
+CONNECTING ·         Registering with REPORT
+STREAMING ●          Sending RTP, no ack yet
+LIVE ●               Fully connected, REPORT receiving
+LOST ⚠               Ack timeout — auto-reconnecting
+
+KIOSK MODE SETUP     (one-time per phone)
+───────────────────  ──────────────────────────────────────
+1.                   Settings → Accessibility → Guided Access → ON
+2.                   Passcode Settings → set a PIN
+3.                   WITNESS → ⚙ → Kiosk mode → ON
+4. Each launch:      Triple-click side button → Start
+5. To exit:          Triple-click → enter PIN → End
 ```
