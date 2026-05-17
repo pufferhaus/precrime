@@ -18,6 +18,10 @@ impl Receiver {
     /// Bind to the temple group on all interfaces. `eviction` is the
     /// silence interval after which a source is dropped from the map.
     pub fn new(group: Ipv4Addr, port: u16, eviction: Duration) -> Result<Self> {
+        anyhow::ensure!(
+            group.is_multicast(),
+            "group {group} is not a multicast address (224.0.0.0/4)"
+        );
         let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))
             .context("create UDP socket")?;
         socket.set_reuse_address(true).context("SO_REUSEADDR")?;
@@ -145,5 +149,11 @@ mod tests {
         let changed = rx.poll(Duration::from_millis(50)).unwrap();
         assert!(changed, "eviction should report change");
         assert_eq!(rx.snapshot().len(), 0);
+    }
+
+    #[test]
+    fn receiver_rejects_non_multicast_group() {
+        let r = Receiver::new(Ipv4Addr::new(192, 168, 1, 1), 20000, Duration::from_secs(6));
+        assert!(r.is_err(), "expected non-multicast address to be rejected");
     }
 }
