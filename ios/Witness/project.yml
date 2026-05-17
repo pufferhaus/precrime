@@ -41,8 +41,6 @@ targets:
         NSBonjourServices:
           - _precog._tcp
           - _precrime-report._tcp
-    entitlements:
-      path: Witness/Witness.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: art.precrime.witness

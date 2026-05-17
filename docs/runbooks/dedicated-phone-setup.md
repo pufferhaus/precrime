@@ -172,9 +172,8 @@ Use `source_slot_overrides` in `report.conf` to pin these names to fixed slots s
 - Check WITNESS is installed: remove + re-push profile after installing
 
 **Kiosk mode toggle has no effect**
-- Paid Apple Developer cert required for the entitlement
-- Guided Access must be enabled in iOS Settings first
-- Free Personal Team cert: entitlement is silently ignored — use triple-click Guided Access manually instead
+- Guided Access must be enabled in iOS Settings → Accessibility → Guided Access first
+- No special entitlement needed — the API works on any signed build
 
 **Can't exit kiosk mode**
 - Triple-click side button → enter Guided Access passcode
