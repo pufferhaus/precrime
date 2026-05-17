@@ -5,6 +5,7 @@ use crate::mapping::assign_slots;
 use crate::pipeline::{
     build_preview, build_program, select_slot, PreviewPipeline, ProgramPipeline, Source,
 };
+use crate::registration::RegisteredSources;
 use anyhow::Result;
 use gstreamer::prelude::*;
 use parking_lot::Mutex;
@@ -18,6 +19,7 @@ use tracing::{error, info, warn};
 pub struct Daemon {
     cfg: ReportConfig,
     state: Arc<Mutex<DaemonState>>,
+    _bonjour: Option<std::process::Child>,
 }
 
 struct DaemonState {
@@ -43,23 +45,37 @@ impl Daemon {
                 program: None,
                 preview: None,
             })),
+            _bonjour: None,
         }
     }
 
-    pub fn run(self) -> Result<()> {
+    pub fn run(mut self) -> Result<()> {
         gstreamer::init()?;
 
         let shutdown = Arc::new(AtomicBool::new(false));
         signal_hook::flag::register(signal_hook::consts::SIGTERM, shutdown.clone())?;
         signal_hook::flag::register(signal_hook::consts::SIGINT, shutdown.clone())?;
 
-        let (src_tx, src_rx) = channel::<Vec<Source>>();
+        // Shared source snapshots — written by their respective producer threads,
+        // read in the event loop for merging.
+        let temple_snapshot: Arc<Mutex<Vec<Source>>> = Arc::new(Mutex::new(Vec::new()));
+        let registered: Arc<std::sync::Mutex<RegisteredSources>> =
+            Arc::new(std::sync::Mutex::new(RegisteredSources::new(
+                self.cfg.rtp_port_min,
+                self.cfg.rtp_port_max,
+            )));
+
+        // Single unified signal channel: any producer sends () to trigger a merge.
+        let (change_tx, change_rx) = channel::<()>();
         let (key_tx, key_rx) = channel::<u8>();
         let (bus_tx, bus_rx) = channel::<BusEvent>();
 
+        // ── Temple-rx thread ─────────────────────────────────────────────────
         let group = self.cfg.temple_group;
         let port = self.cfg.temple_port;
         let eviction = Duration::from_secs(BALL_EVICTION_SECS);
+        let temple_snap_tx = temple_snapshot.clone();
+        let change_tx_temple = change_tx.clone();
         std::thread::Builder::new()
             .name("report-temple-rx".into())
             .spawn(move || {
@@ -74,7 +90,8 @@ impl Daemon {
                     match rx.poll(Duration::from_secs(1)) {
                         Ok(true) => {
                             let sources = balls_to_sources(rx.snapshot());
-                            if src_tx.send(sources).is_err() {
+                            *temple_snap_tx.lock() = sources;
+                            if change_tx_temple.send(()).is_err() {
                                 break;
                             }
                         }
@@ -86,6 +103,7 @@ impl Daemon {
                 }
             })?;
 
+        // ── Keyboard thread ───────────────────────────────────────────────────
         let kbd_device = self.cfg.keyboard_device.clone();
         std::thread::Builder::new()
             .name("report-keyboard".into())
@@ -95,19 +113,79 @@ impl Daemon {
                 }
             })?;
 
-        self.event_loop(src_rx, key_rx, bus_rx, bus_tx, shutdown)
+        // ── Registration server thread ────────────────────────────────────────
+        crate::registration::spawn_registration_server(
+            self.cfg.reg_port,
+            self.cfg.report_name.clone(),
+            self.cfg.ack_port,
+            registered.clone(),
+            change_tx.clone(),
+        )?;
+
+        // ── Eviction thread ───────────────────────────────────────────────────
+        {
+            let registered_evict = registered.clone();
+            let change_tx_evict = change_tx.clone();
+            std::thread::Builder::new()
+                .name("report-eviction".into())
+                .spawn(move || loop {
+                    std::thread::sleep(Duration::from_secs(5));
+                    let evicted = registered_evict
+                        .lock()
+                        .expect("eviction lock")
+                        .evict_stale(Duration::from_secs(30));
+                    if !evicted.is_empty() {
+                        for name in &evicted {
+                            info!(source = %name, "evicted stale registered source");
+                        }
+                        if change_tx_evict.send(()).is_err() {
+                            break;
+                        }
+                    }
+                })?;
+        }
+
+        // ── Ack sender thread ─────────────────────────────────────────────────
+        crate::ack::spawn_ack_sender(
+            registered.clone(),
+            temple_snapshot.clone(),
+            self.cfg.report_name.clone(),
+            self.cfg.ack_port,
+            shutdown.clone(),
+        )?;
+
+        // ── Bonjour publisher subprocess ──────────────────────────────────────
+        self._bonjour =
+            crate::bonjour::spawn_bonjour_publisher(&self.cfg.report_name, self.cfg.reg_port);
+
+        self.event_loop(
+            temple_snapshot,
+            registered,
+            change_rx,
+            key_rx,
+            bus_rx,
+            bus_tx,
+            shutdown,
+        )
     }
 
     fn event_loop(
         &self,
-        src_rx: Receiver<Vec<Source>>,
+        temple_snapshot: Arc<Mutex<Vec<Source>>>,
+        registered: Arc<std::sync::Mutex<RegisteredSources>>,
+        change_rx: Receiver<()>,
         key_rx: Receiver<u8>,
         bus_rx: Receiver<BusEvent>,
         bus_tx: Sender<BusEvent>,
         shutdown: Arc<AtomicBool>,
     ) -> Result<()> {
         while !shutdown.load(Ordering::Relaxed) {
-            if let Ok(sources) = src_rx.recv_timeout(Duration::from_millis(50)) {
+            if change_rx.recv_timeout(Duration::from_millis(50)).is_ok() {
+                let sources = {
+                    let temple = temple_snapshot.lock();
+                    let reg = registered.lock().expect("registered lock");
+                    merged_sources(&temple, &reg)
+                };
                 self.on_sources_changed(sources, &bus_tx)?;
             }
             while let Ok(slot) = key_rx.try_recv() {
@@ -133,6 +211,9 @@ impl Daemon {
         }
 
         info!("shutdown signal received — tearing down pipelines");
+        // Kill bonjour subprocess if running.
+        // (self._bonjour is dropped with self after this function returns,
+        //  but explicit kill+wait avoids zombie processes)
         let mut st = self.state.lock();
         if let Some(p) = st.program.take() {
             let _ = p.pipeline.set_state(gstreamer::State::Null);
@@ -233,6 +314,26 @@ impl Daemon {
     }
 }
 
+/// Merge temple (multicast) sources with registered (unicast) sources.
+/// Registered source wins over temple source if both have the same name.
+fn merged_sources(temple: &[Source], registered: &RegisteredSources) -> Vec<Source> {
+    const DEFAULT_PT: u8 = 96;
+    const DEFAULT_CLOCK_RATE: u32 = 90000;
+    const DEFAULT_ENCODING: &str = "H264";
+
+    let unicast = registered.as_sources(DEFAULT_PT, DEFAULT_CLOCK_RATE, DEFAULT_ENCODING);
+    let unicast_names: std::collections::HashSet<&str> =
+        unicast.iter().map(|s| s.name.as_str()).collect();
+
+    let mut result: Vec<Source> = temple
+        .iter()
+        .filter(|s| !unicast_names.contains(s.name.as_str()))
+        .cloned()
+        .collect();
+    result.extend(unicast);
+    result
+}
+
 /// Convert balls into pipeline-ready Source records, keeping only PRECOG-named
 /// entries (defense in depth — non-PRECOG balls should not reach this channel
 /// in production).
@@ -242,11 +343,14 @@ fn balls_to_sources(balls: Vec<Ball>) -> Vec<Source> {
         .filter_map(|b| match b {
             Ball::V1(v) if v.name.starts_with("PRECOG-") => Some(Source {
                 name: v.name,
-                mcast: v.rtp.mcast,
+                transport: crate::pipeline::Transport::Multicast {
+                    group: v.rtp.mcast,
+                },
                 port: v.rtp.port,
                 payload_type: v.rtp.pt,
                 clock_rate: v.rtp.clock_rate,
                 encoding_name: v.rtp.encoding_name,
+                host: Some(v.host),
             }),
             _ => None,
         })
@@ -311,14 +415,19 @@ mod tests {
 
     #[test]
     fn balls_to_sources_keeps_precog_names() {
+        use crate::pipeline::Transport;
         let sources = balls_to_sources(vec![
             ball("PRECOG-01-X", "239.42.1.1"),
             ball("OTHER-DEVICE", "239.42.1.2"),
         ]);
         assert_eq!(sources.len(), 1);
         assert_eq!(sources[0].name, "PRECOG-01-X");
-        assert_eq!(sources[0].mcast, "239.42.1.1");
+        assert_eq!(
+            sources[0].transport,
+            Transport::Multicast { group: "239.42.1.1".into() }
+        );
         assert_eq!(sources[0].payload_type, 96);
+        assert_eq!(sources[0].host, Some("10.0.0.1".into()));
     }
 
     #[test]

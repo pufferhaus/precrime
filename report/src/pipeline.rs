@@ -18,16 +18,27 @@ const H264_DECODER: &str = "v4l2slh264dec";
 #[cfg(not(target_os = "linux"))]
 const H264_DECODER: &str = "avdec_h264";
 
+/// Transport mode for a source.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Transport {
+    /// UDP multicast: join the given group address.
+    Multicast { group: String },
+    /// UDP unicast: bind 0.0.0.0 on the port, receive from any sender.
+    Unicast,
+}
+
 /// One discovered source as seen by the pipeline builders. Cloned from the
 /// `temple::Ball` payload at the moment pipelines are rebuilt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
     pub name: String,
-    pub mcast: String, // IPv4 multicast group, e.g. "239.42.1.1"
+    pub transport: Transport,
     pub port: u16,
     pub payload_type: u8,
     pub clock_rate: u32,
     pub encoding_name: String, // "H264"
+    /// Sender IP address for ack packets. None for pure-multicast sources.
+    pub host: Option<String>,
 }
 
 pub struct ProgramPipeline {
@@ -39,19 +50,31 @@ pub struct ProgramPipeline {
 pub fn program_pipeline_string(sources: &[Source], connector_id: u32) -> String {
     let mut parts = String::from("input-selector name=sel");
     for (i, s) in sources.iter().enumerate() {
+        let udpsrc = match &s.transport {
+            Transport::Multicast { group } => format!(
+                "udpsrc address={group} port={port} auto-multicast=true \
+                 caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\"",
+                port = s.port,
+                cr = s.clock_rate,
+                enc = s.encoding_name,
+                pt = s.payload_type,
+            ),
+            Transport::Unicast => format!(
+                "udpsrc port={port} \
+                 caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\"",
+                port = s.port,
+                cr = s.clock_rate,
+                enc = s.encoding_name,
+                pt = s.payload_type,
+            ),
+        };
         parts.push_str(&format!(
-            " udpsrc address={mcast} port={port} auto-multicast=true \
-             caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\" ! \
+            " {udpsrc} ! \
              rtpjitterbuffer latency=20 ! \
              rtph264depay ! h264parse ! {decoder} ! \
              queue max-size-buffers=4 leaky=downstream ! \
              videoconvert ! sel.sink_{i}",
             decoder = H264_DECODER,
-            mcast = s.mcast,
-            port = s.port,
-            cr = s.clock_rate,
-            enc = s.encoding_name,
-            pt = s.payload_type,
         ));
     }
     parts.push_str(&format!(
@@ -123,19 +146,31 @@ pub fn preview_pipeline_string(sources: &[Source], connector_id: u32) -> String 
         ));
     }
     for (i, src) in sources.iter().enumerate() {
+        let udpsrc = match &src.transport {
+            Transport::Multicast { group } => format!(
+                "udpsrc address={group} port={port} auto-multicast=true \
+                 caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\"",
+                port = src.port,
+                cr = src.clock_rate,
+                enc = src.encoding_name,
+                pt = src.payload_type,
+            ),
+            Transport::Unicast => format!(
+                "udpsrc port={port} \
+                 caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\"",
+                port = src.port,
+                cr = src.clock_rate,
+                enc = src.encoding_name,
+                pt = src.payload_type,
+            ),
+        };
         s.push_str(&format!(
-            " udpsrc address={mcast} port={port} auto-multicast=true \
-             caps=\"application/x-rtp,media=video,clock-rate={cr},encoding-name={enc},payload={pt}\" ! \
+            " {udpsrc} ! \
              rtpjitterbuffer latency=20 ! \
              rtph264depay ! h264parse ! {decoder} ! \
              queue max-size-buffers=4 leaky=downstream ! \
              videoconvert ! videoscale ! video/x-raw,width={tile_w},height={tile_h} ! mix.sink_{i}",
             decoder = H264_DECODER,
-            mcast = src.mcast,
-            port = src.port,
-            cr = src.clock_rate,
-            enc = src.encoding_name,
-            pt = src.payload_type,
         ));
     }
     s.push_str(&format!(
@@ -208,16 +243,17 @@ pub fn build_preview(
 
 #[cfg(test)]
 mod tests {
-    use super::{preview_pipeline_string, program_pipeline_string, Source, H264_DECODER};
+    use super::{preview_pipeline_string, program_pipeline_string, Source, Transport, H264_DECODER};
 
     fn s(name: &str, mcast: &str, port: u16) -> Source {
         Source {
             name: name.into(),
-            mcast: mcast.into(),
+            transport: Transport::Multicast { group: mcast.into() },
             port,
             payload_type: 96,
             clock_rate: 90000,
             encoding_name: "H264".into(),
+            host: None,
         }
     }
 

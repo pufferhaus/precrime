@@ -24,6 +24,24 @@ pub struct ReportConfig {
     pub temple_group: Ipv4Addr,
     #[serde(default = "default_temple_port")]
     pub temple_port: u16,
+
+    /// TCP port for dynamic source registration. Default: 4999.
+    #[serde(default = "default_reg_port")]
+    pub reg_port: u16,
+
+    /// RTP port pool for unicast sources.
+    #[serde(default = "default_rtp_port_min")]
+    pub rtp_port_min: u16,
+    #[serde(default = "default_rtp_port_max")]
+    pub rtp_port_max: u16,
+
+    /// UDP port that sources listen on for ack packets. Default: 9998.
+    #[serde(default = "default_ack_port")]
+    pub ack_port: u16,
+
+    /// Identity string used in Bonjour advertisement and ack payload. Default: "REPORT-MAIN".
+    #[serde(default = "default_report_name")]
+    pub report_name: String,
 }
 
 fn default_temple_group() -> Ipv4Addr {
@@ -31,6 +49,21 @@ fn default_temple_group() -> Ipv4Addr {
 }
 fn default_temple_port() -> u16 {
     9999
+}
+fn default_reg_port() -> u16 {
+    4999
+}
+fn default_rtp_port_min() -> u16 {
+    5000
+}
+fn default_rtp_port_max() -> u16 {
+    5099
+}
+fn default_ack_port() -> u16 {
+    9998
+}
+fn default_report_name() -> String {
+    "REPORT-MAIN".into()
 }
 
 impl ReportConfig {
@@ -53,6 +86,11 @@ keyboard_device = "/dev/input/event0"
         let c = ReportConfig::from_toml(raw).unwrap();
         assert_eq!(c.temple_port, 9999);
         assert_eq!(c.temple_group.to_string(), "239.42.0.1");
+        assert_eq!(c.reg_port, 4999);
+        assert_eq!(c.rtp_port_min, 5000);
+        assert_eq!(c.rtp_port_max, 5099);
+        assert_eq!(c.ack_port, 9998);
+        assert_eq!(c.report_name, "REPORT-MAIN");
     }
 
     #[test]
