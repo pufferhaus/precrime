@@ -1,6 +1,6 @@
-# PrecogCam — iOS H.264 RTP unicast sender for PRECRIME REPORT
+# WITNESS — iOS H.264 RTP unicast sender for PRECRIME REPORT
 #
-#   make project   — generate PrecogCam.xcodeproj via xcodegen
+#   make project   — generate Witness.xcodeproj via xcodegen
 #   make open      — open project in Xcode
 #   make clean     — remove generated project
 #
@@ -15,7 +15,7 @@ project:
 	xcodegen generate
 
 open: project
-	open PrecogCam.xcodeproj
+	open Witness.xcodeproj
 
 clean:
-	rm -rf PrecogCam.xcodeproj build DerivedData
+	rm -rf Witness.xcodeproj build DerivedData
