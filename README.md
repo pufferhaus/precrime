@@ -89,38 +89,46 @@ WITNESS                              REPORT
     └── superpowers/specs/      # feature design docs
 ```
 
-## Build — Rust (REPORT + PRECOG)
+## Build
 
-Build happens on the Pi via SSH. Drive from the repo root Makefile.
+All Rust compilation happens on the macOS dev machine. Pis only run the
+deployed aarch64 binaries — no rustup, no cargo on the Pi side. This keeps
+runtime RAM available for GStreamer (precog can run on a 1GB Pi 5; report on
+2GB) and avoids on-Pi build latency.
 
-**First-time Pi setup:**
+**Prereqs on macOS (one-time):**
 
 ```bash
-make install-report REPORT_HOST=report.local
-# SSH in → edit /etc/precrime/report.conf
-make deploy-report REPORT_HOST=report.local
+brew install colima docker
+colima start --cpu 4 --memory 8 --disk 60
+cargo install cross --git https://github.com/cross-rs/cross
 ```
+
+**First-time provision a Pi (apt deps + systemd unit, run once):**
 
 ```bash
 make install-precog PRECOG_HOST=precog-01.local
-# SSH in → edit /etc/precog/precog.conf
-make deploy-precog PRECOG_HOST=precog-01.local
+make install-report REPORT_HOST=report.local
+```
+
+**Build + deploy (iterate freely):**
+
+```bash
+make deploy-precog PRECOG_HOST=precog-01.local  # cross build + rsync + systemctl restart
+make deploy-report REPORT_HOST=report.local
 ```
 
 **Iterate:**
 
 ```bash
-make deploy-report   # rsync + cargo build --release + restart
-make logs-report     # tail journalctl -u report.service -f
-make restart-report  # restart only
+make logs-precog | logs-report        # tail journalctl
+make restart-precog | restart-report  # restart only, no rebuild
 ```
 
-**macOS dev:**
+`make help` lists every target.
 
-```bash
-brew install gstreamer gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
-make check && make test
-```
+For a full RTP loopback smoke test against the built-in webcam, follow
+[`docs/runbooks/2026-05-17-rtp-mac-smoke.md`](docs/runbooks/2026-05-17-rtp-mac-smoke.md).
 
 ## Build — WITNESS (iOS)
 
@@ -169,9 +177,23 @@ temple_port  = 9999
 ## Hardware (Phase 2 BOM, ~$490)
 
 - GL.iNet Flint 3 (GL-BE9300) WiFi 7/6E router — ~$200–300
-- 2× Raspberry Pi 5 8GB + coolers + SD cards — ~$230
-- EasyCap UTV007 USB analog capture — $15
-- Cat6a, mounts, power — ~$50
+- Raspberry Pi 5 2GB (REPORT, with HW H.264 decode) — $55 (4GB at $70 if staying on software decode)
+- Raspberry Pi 5 1GB (PRECOG encoder, each) — $45
+- Active cooler per Pi 5 — $5 (mandatory for sustained x264 software encode)
+- EasyCap UTV007 USB analog video capture — $15
+
+**Memory sizing rationale:** all Rust compilation runs on the macOS dev machine
+via `cross` (see Build section); Pis receive pre-built aarch64 binaries.
+Runtime memory budgets:
+- precog @ 1080p30: ~400–500 MB resident (GStreamer + x264 state + capture
+  buffers) — fits 1GB Pi 5 with ~500 MB headroom.
+- report @ 4 sources: ~600 MB with HW decode (`v4l2slh264dec`), ~1.1 GB with
+  software decode (`avdec_h264`). 2GB Pi 5 fits HW-decode case; 4GB needed for
+  software-decode case or >4 sources.
+
+LPDDR4 prices are volatile in 2026; the 1GB Pi 5 ($45) was added by the Foundation
+specifically as a budget point during the spike. Going 1GB precog instead of
+4GB saves $25/unit at current prices — meaningful at scale.
 
 ## License
 
