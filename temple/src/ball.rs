@@ -102,13 +102,17 @@ mod tests {
 
     #[test]
     fn unknown_version_fails_to_parse() {
-        let raw = br#"{"v":"99","name":"X"}"#;
+        // Structurally-complete V1 payload, only the version tag is bogus.
+        // Tests that serde's tag dispatch (not missing-field errors) rejects unknown versions.
+        let raw = br#"{"v":"99","name":"PRECOG-01","host":"10.0.0.11","rtp":{"mcast":"239.42.1.1","port":5000,"pt":96,"clock_rate":90000,"encoding_name":"H264"},"video":{"width":1920,"height":1080,"framerate":"30/1"}}"#;
         assert!(Ball::from_json(raw).is_err());
     }
 
     #[test]
     fn payload_under_one_mtu() {
         let bytes = sample().to_json().unwrap();
+        // Typical Ethernet MTU 1500 minus IPv4/UDP headers ≈ 1472 bytes safe; 600 leaves ample
+        // headroom and catches if the ball schema ever bloats unexpectedly.
         assert!(bytes.len() < 600, "ball grew: {} bytes", bytes.len());
     }
 }
