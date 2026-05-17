@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct PrecogCamApp: App {
+struct WitnessApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {

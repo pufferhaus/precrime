@@ -3,7 +3,6 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
     @State private var showSettings = false
-    /// View-space point where the focus reticle should be drawn.
     @State private var reticleViewPoint: CGPoint = .zero
 
     var body: some View {
@@ -21,7 +20,7 @@ struct ContentView: View {
                 .ignoresSafeArea()
             } else {
                 VStack(spacing: 12) {
-                    Text("PRECOG-Cam").font(.title.monospaced())
+                    Text("WITNESS").font(.title.monospaced())
                     Text("Camera access required.").font(.callout).foregroundStyle(.secondary)
                 }
                 .foregroundStyle(.white)
@@ -30,7 +29,7 @@ struct ContentView: View {
             if model.settings.stageMode {
                 StageStatusView()
             } else {
-                // Focus reticle overlay
+                // Focus reticle
                 if case let .focusing(pt) = model.focusState {
                     FocusReticle(point: reticleViewPoint, state: model.focusState)
                         .id("focusing-\(pt.x)-\(pt.y)")
@@ -40,48 +39,14 @@ struct ContentView: View {
                         .id("locked-\(pt.x)-\(pt.y)")
                 }
 
-                // Top bar
-                VStack {
-                    HStack {
-                        StatusPill(
-                            connectionState: model.connectionState,
-                            name: model.settings.sourceName,
-                            connectedPort: model.connectedPort
-                        )
-                        Spacer()
-
-                        // Flip camera button
-                        Button { model.flipCamera() } label: {
-                            Image(systemName: "camera.rotate")
-                                .font(.title2)
-                                .padding(10)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-                        .foregroundStyle(.white)
-
-                        // Stage mode toggle
-                        Button {
-                            model.settings.stageMode = true
-                        } label: {
-                            Image(systemName: "moon.fill")
-                                .font(.title2)
-                                .padding(10)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-                        .foregroundStyle(.white)
-
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.title2)
-                                .padding(10)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-                        .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                VStack(spacing: 0) {
+                    // ── Full-width status bar ──────────────────────────
+                    StatusBar(
+                        connectionState: model.connectionState,
+                        name: model.settings.sourceName,
+                        reportName: model.connectedReportName,
+                        connectedPort: model.connectedPort
+                    )
 
                     Spacer()
 
@@ -91,8 +56,35 @@ struct ContentView: View {
                             .padding(8)
                             .background(.red.opacity(0.7), in: RoundedRectangle(cornerRadius: 6))
                             .foregroundStyle(.white)
-                            .padding()
+                            .padding(.horizontal)
+                            .padding(.bottom, 8)
                     }
+
+                    // ── Bottom button bar ──────────────────────────────
+                    HStack {
+                        Spacer()
+                        Button { model.flipCamera() } label: {
+                            Image(systemName: "camera.rotate")
+                                .font(.title2).padding(14)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        Spacer()
+                        Button { model.settings.stageMode = true } label: {
+                            Image(systemName: "moon.fill")
+                                .font(.title2).padding(14)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        Spacer()
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.title2).padding(14)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        Spacer()
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial.opacity(0.6))
                 }
 
                 // Side sliders — left = exposure + WB lock, right = zoom
@@ -111,7 +103,6 @@ struct ContentView: View {
                                 min: evMin,
                                 max: evMax
                             )
-                            // White balance lock button
                             Button {
                                 model.setWhiteBalance(
                                     model.whiteBalanceState == .auto ? .locked : .auto
@@ -151,84 +142,57 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Focus Reticle
+// MARK: - Status bar (full width across top)
 
-private struct FocusReticle: View {
-    let point: CGPoint
-    let state: FocusState
+private struct StatusBar: View {
+    let connectionState: ConnectionState
+    let name: String
+    let reportName: String
+    let connectedPort: UInt16
 
-    @State private var appeared = false
-    @State private var pulse = false
-
-    private let size: CGFloat = 60
-    private let bracketLen: CGFloat = 14
-    private let lineWidth: CGFloat = 2
-
-    var body: some View {
-        ZStack {
-            // Corner bracket square using four L-shaped paths
-            CornerBrackets(size: size, bracketLen: bracketLen, lineWidth: lineWidth)
-                .stroke(.white, lineWidth: lineWidth)
-        }
-        .frame(width: size, height: size)
-        .scaleEffect(appeared ? 1.0 : 1.3)
-        .opacity(pulse ? 0.55 : 1.0)
-        .position(point)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.2)) {
-                appeared = true
-            }
-            if case .focusing = state {
-                withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
-            }
-        }
-        .onChange(of: state) { newState in
-            if case .locked = newState {
-                // Stop pulsing once locked
-                withAnimation(.easeOut(duration: 0.2)) {
-                    pulse = false
-                }
-            }
+    private var dotColor: Color {
+        switch connectionState {
+        case .searching, .registering: return .gray
+        case .streaming:               return .orange
+        case .live:                    return .green
+        case .lost:                    return .yellow
         }
     }
-}
 
-private struct CornerBrackets: Shape {
-    let size: CGFloat
-    let bracketLen: CGFloat
-    let lineWidth: CGFloat
+    private var stateLabel: String {
+        switch connectionState {
+        case .searching:   return "SEARCHING"
+        case .registering: return "CONNECTING"
+        case .streaming:   return "STREAMING"
+        case .live:        return "LIVE"
+        case .lost:        return "LOST"
+        }
+    }
 
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let s = bracketLen
-        let w = size
-        let h = size
-        let ox = rect.minX
-        let oy = rect.minY
-
-        // Top-left
-        p.move(to: CGPoint(x: ox, y: oy + s))
-        p.addLine(to: CGPoint(x: ox, y: oy))
-        p.addLine(to: CGPoint(x: ox + s, y: oy))
-
-        // Top-right
-        p.move(to: CGPoint(x: ox + w - s, y: oy))
-        p.addLine(to: CGPoint(x: ox + w, y: oy))
-        p.addLine(to: CGPoint(x: ox + w, y: oy + s))
-
-        // Bottom-right
-        p.move(to: CGPoint(x: ox + w, y: oy + h - s))
-        p.addLine(to: CGPoint(x: ox + w, y: oy + h))
-        p.addLine(to: CGPoint(x: ox + w - s, y: oy + h))
-
-        // Bottom-left
-        p.move(to: CGPoint(x: ox + s, y: oy + h))
-        p.addLine(to: CGPoint(x: ox, y: oy + h))
-        p.addLine(to: CGPoint(x: ox, y: oy + h - s))
-
-        return p
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 8, height: 8)
+            Text(stateLabel)
+                .font(.caption.bold().monospaced())
+            Text(name)
+                .font(.caption.monospaced())
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            if !reportName.isEmpty {
+                Text("\(reportName) · \(connectedPort)")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
     }
 }
 
@@ -245,8 +209,7 @@ private struct ZoomSlider: View {
             Text(String(format: "%.1f×", value))
                 .font(.caption.bold().monospaced())
                 .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(.ultraThinMaterial, in: Capsule())
 
             Slider(value: $value, in: 1.0...maxZoom, step: 0.1)
@@ -257,14 +220,12 @@ private struct ZoomSlider: View {
 
             Button { value = 1.0 } label: {
                 Text("1×")
-                    .font(.caption.bold().monospaced())
-                    .foregroundStyle(.white)
+                    .font(.caption.bold().monospaced()).foregroundStyle(.white)
                     .frame(width: 36, height: 28)
                     .background(.ultraThinMaterial, in: Capsule())
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
+        .padding(.vertical, 10).padding(.horizontal, 6)
         .background(.ultraThinMaterial.opacity(0.5), in: RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -276,9 +237,7 @@ private struct ExposureSlider: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: "sun.max.fill")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.7))
+            Image(systemName: "sun.max.fill").font(.caption).foregroundStyle(.white.opacity(0.7))
 
             Slider(value: $value, in: min...max, step: 0.1)
                 .tint(.yellow)
@@ -286,98 +245,74 @@ private struct ExposureSlider: View {
                 .rotationEffect(.degrees(-90))
                 .frame(width: 44, height: sliderTrackHeight)
 
-            Image(systemName: "sun.min.fill")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.7))
+            Image(systemName: "sun.min.fill").font(.caption).foregroundStyle(.white.opacity(0.7))
 
             Text(String(format: "%+.1f", value))
-                .font(.caption.bold().monospaced())
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
+                .font(.caption.bold().monospaced()).foregroundStyle(.white)
+                .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(.ultraThinMaterial, in: Capsule())
 
             Button { value = 0.0 } label: {
                 Text("0EV")
-                    .font(.caption.bold().monospaced())
-                    .foregroundStyle(.white)
+                    .font(.caption.bold().monospaced()).foregroundStyle(.white)
                     .frame(width: 36, height: 28)
                     .background(.ultraThinMaterial, in: Capsule())
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
+        .padding(.vertical, 10).padding(.horizontal, 6)
         .background(.ultraThinMaterial.opacity(0.5), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
-// MARK: - Status pill
+// MARK: - Focus Reticle
 
-private struct StatusPill: View {
-    let connectionState: ConnectionState
-    let name: String
-    let connectedPort: UInt16
+private struct FocusReticle: View {
+    let point: CGPoint
+    let state: FocusState
 
-    private var dotColor: Color {
-        switch connectionState {
-        case .searching, .registering: return .gray
-        case .streaming:               return .orange
-        case .live:                    return .green
-        case .lost:                    return .yellow
-        }
-    }
+    @State private var appeared = false
+    @State private var pulse = false
 
-    private var dotSymbol: String {
-        switch connectionState {
-        case .searching:   return "arrow.triangle.2.circlepath"
-        case .registering: return "circle.dotted"
-        case .streaming:   return "circle.fill"
-        case .live:        return "circle.fill"
-        case .lost:        return "exclamationmark.triangle.fill"
-        }
-    }
-
-    private var stateLabel: String {
-        switch connectionState {
-        case .searching:              return "SEARCHING"
-        case .registering:            return "REGISTERING"
-        case .streaming:              return "STREAMING"
-        case .live:                   return "LIVE"
-        case .lost:                   return "LOST"
-        }
-    }
-
-    private var detail: String {
-        switch connectionState {
-        case .searching, .registering:
-            return "—"
-        case .streaming:
-            return connectedPort > 0 ? ":\(connectedPort)" : "—"
-        case .live(let reportName):
-            return connectedPort > 0 ? "\(reportName) :\(connectedPort)" : reportName
-        case .lost(let reportName):
-            return reportName
-        }
-    }
+    private let size: CGFloat = 60
+    private let bracketLen: CGFloat = 14
+    private let lineWidth: CGFloat = 2
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: dotSymbol)
-                .font(.caption.bold())
-                .foregroundStyle(dotColor)
-            Text(stateLabel)
-                .font(.caption.bold().monospaced())
-            VStack(alignment: .leading, spacing: 0) {
-                Text(name).font(.caption.monospaced()).lineLimit(1)
-                Text(detail)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.white.opacity(0.7))
-                    .lineLimit(1)
+        CornerBrackets(size: size, bracketLen: bracketLen, lineWidth: lineWidth)
+            .stroke(.white, lineWidth: lineWidth)
+            .frame(width: size, height: size)
+            .scaleEffect(appeared ? 1.0 : 1.3)
+            .opacity(pulse ? 0.55 : 1.0)
+            .position(point)
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.2)) { appeared = true }
+                if case .focusing = state {
+                    withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
+                        pulse = true
+                    }
+                }
             }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: Capsule())
-        .foregroundStyle(.white)
+            .onChange(of: state) { newState in
+                if case .locked = newState {
+                    withAnimation(.easeOut(duration: 0.2)) { pulse = false }
+                }
+            }
+    }
+}
+
+private struct CornerBrackets: Shape {
+    let size: CGFloat
+    let bracketLen: CGFloat
+    let lineWidth: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let s = bracketLen
+        let (w, h, ox, oy) = (size, size, rect.minX, rect.minY)
+        p.move(to: CGPoint(x: ox,       y: oy + s)); p.addLine(to: CGPoint(x: ox,       y: oy    )); p.addLine(to: CGPoint(x: ox + s,   y: oy    ))
+        p.move(to: CGPoint(x: ox+w-s,   y: oy    )); p.addLine(to: CGPoint(x: ox + w,   y: oy    )); p.addLine(to: CGPoint(x: ox + w,   y: oy + s))
+        p.move(to: CGPoint(x: ox + w,   y: oy+h-s)); p.addLine(to: CGPoint(x: ox + w,   y: oy + h)); p.addLine(to: CGPoint(x: ox+w-s,   y: oy + h))
+        p.move(to: CGPoint(x: ox + s,   y: oy + h)); p.addLine(to: CGPoint(x: ox,       y: oy + h)); p.addLine(to: CGPoint(x: ox,       y: oy+h-s))
+        return p
     }
 }

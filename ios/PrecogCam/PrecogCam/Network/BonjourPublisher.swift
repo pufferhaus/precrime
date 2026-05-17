@@ -8,7 +8,7 @@ import os.log
 /// TXT record carries v, resolution, and fps — informational for management
 /// tooling; REPORT does not actively browse this service.
 final class BonjourPublisher: NSObject {
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "BonjourPublisher")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "BonjourPublisher")
 
     private var service: NetService?
     private var name: String

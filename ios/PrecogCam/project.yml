@@ -1,4 +1,4 @@
-name: PrecogCam
+name: Witness
 options:
   bundleIdPrefix: art.precrime
   deploymentTarget:
@@ -16,7 +16,7 @@ settings:
     CLANG_ENABLE_MODULES: YES
 
 targets:
-  PrecogCam:
+  Witness:
     type: application
     platform: iOS
     sources:
@@ -24,7 +24,7 @@ targets:
     info:
       path: PrecogCam/Info.plist
       properties:
-        CFBundleDisplayName: PRECOG-Cam
+        CFBundleDisplayName: WITNESS
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
@@ -43,7 +43,7 @@ targets:
           - _precrime-report._tcp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: art.precrime.PrecogCam
+        PRODUCT_BUNDLE_IDENTIFIER: art.precrime.witness
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         SUPPORTS_MACCATALYST: NO

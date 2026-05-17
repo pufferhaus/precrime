@@ -8,7 +8,7 @@ import os.log
 /// Call `startBrowsing()` to begin. Call `stop()` to tear down.
 /// The object is single-use after `stop()`; create a new one to retry.
 final class ReportDiscovery: NSObject {
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "ReportDiscovery")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "ReportDiscovery")
 
     var onFound: ((String, Int) -> Void)?   // (host, regPort) on main queue
     var onTimeout: (() -> Void)?             // fired if no report found within timeout

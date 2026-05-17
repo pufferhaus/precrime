@@ -6,7 +6,7 @@ import os.log
 ///
 /// All callbacks arrive on the main queue.
 final class RegistrationClient {
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "RegistrationClient")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "RegistrationClient")
 
     struct Registration {
         let assignedPort: UInt16

@@ -63,7 +63,7 @@ final class AppModel: ObservableObject {
     private var currentReportHost: String?
     private var currentRegPort: Int = 4999
 
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "AppModel")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "AppModel")
 
     init(settings: AppSettings = AppSettings()) {
         self.settings = settings

@@ -31,10 +31,10 @@ enum CaptureResolution: String, CaseIterable, Identifiable {
 final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
-    private let captureQueue = DispatchQueue(label: "art.precrime.PrecogCam.capture",
+    private let captureQueue = DispatchQueue(label: "art.precrime.witness.capture",
                                               qos: .userInteractive)
     private var currentDevice: AVCaptureDevice?
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "Capture")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "Capture")
 
     var onFrame: ((CVPixelBuffer, CMTime) -> Void)?
 

@@ -22,7 +22,7 @@ final class H264Encoder {
     private let fps: Int32
     private let bitrateBps: Int32
     private var firstFrameSent = false
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "H264Encoder")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "H264Encoder")
 
     init(width: Int32, height: Int32, fps: Int32, bitrateBps: Int32) throws {
         self.width = width

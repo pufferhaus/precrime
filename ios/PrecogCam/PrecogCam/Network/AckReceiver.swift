@@ -8,7 +8,7 @@ import os.log
 /// Uses BSD sockets (same approach as RtpSender). Runs a blocking recv loop
 /// on a dedicated background thread; a short recv timeout allows clean shutdown.
 final class AckReceiver {
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "AckReceiver")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "AckReceiver")
 
     /// Called on main queue when a valid ack arrives.
     var onAck: ((String) -> Void)?   // reportName
@@ -16,7 +16,7 @@ final class AckReceiver {
     private let port: UInt16
     private var fd: Int32 = -1
     private var running = false
-    private let queue = DispatchQueue(label: "art.precrime.PrecogCam.ackReceiver", qos: .utility)
+    private let queue = DispatchQueue(label: "art.precrime.witness.ackReceiver", qos: .utility)
 
     init(port: UInt16 = 9998) {
         self.port = port

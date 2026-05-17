@@ -1,0 +1,442 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0FB7896F2BDD5EB828601B1C /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BBC47FEE5C9360F4C95D2B1 /* AVFoundation.framework */; };
+		139BB67DD820A8E550C07F31 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420D02798B6688B99E7F1766 /* AppModel.swift */; };
+		1C7EA774F119E6DB8579F135 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5840DDA4E3B615B5898918D /* AppSettings.swift */; };
+		1E59DAE59EEFD62199A9E39C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2BE636A69A5146352973F9 /* SettingsView.swift */; };
+		1EB6B11713D222575D38C7BF /* RegistrationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BFBA19E9A1ED9DF87D99FEF /* RegistrationClient.swift */; };
+		2F047F43F7EC5EE24F81372A /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3595DC85FDD3182A768EC143 /* UIKit.framework */; };
+		44AC093F285F16F9D24E5E5E /* RtpSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91974FBA5368AD0A67560DEE /* RtpSender.swift */; };
+		56C7D1FE0C54CFCEE10893EF /* CaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8877CCDB31765FE2A8B850B /* CaptureSession.swift */; };
+		60CAA00E6CB9BEC4E4E613C2 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FD9FED588752E4D850311C6D /* VideoToolbox.framework */; };
+		659DF947BB95EC1CD76228C3 /* ReportDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56A94DB1E53A11C17AFBF5A /* ReportDiscovery.swift */; };
+		67CB24E29DD733B3C3D240D9 /* BonjourPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3342A5605E5CD3ADC446272 /* BonjourPublisher.swift */; };
+		8050A735898C0126BF70C840 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6477FB1077091D8F503906F8 /* CameraPreview.swift */; };
+		91D4068CB2997FD5854B17D1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5F3EA70355F14419F76BDA76 /* CoreVideo.framework */; };
+		B92C6259DA4E1E34822F84F5 /* PrecogCamApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECEF0FCD1681364C59D93B /* PrecogCamApp.swift */; };
+		BB3A1DBC35C84EFE792C1A61 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0ED3A1DAFB6146A021C939B4 /* CoreMedia.framework */; };
+		C03AE9E8377FF210670B95D4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2F9FAF93DB12AF73442338 /* ContentView.swift */; };
+		CFFC987EF5A9E46B715EFC93 /* H264Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741D604447A383574CD6CBCA /* H264Encoder.swift */; };
+		DA159324B3EA0DEC3FBC7F1E /* StageStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B451EBC6F83642790B3C068 /* StageStatusView.swift */; };
+		E0409ED78A85F054F6D278E5 /* RtpPacketizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE534CE26FB412D767B2360 /* RtpPacketizer.swift */; };
+		F6A3A83D867327B45172DBE5 /* AckReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62EDCD11FD90ED666444E66A /* AckReceiver.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		003C9498EA506F48F2E4ECF9 /* Witness.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Witness.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0ED3A1DAFB6146A021C939B4 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		1AECEF0FCD1681364C59D93B /* PrecogCamApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrecogCamApp.swift; sourceTree = "<group>"; };
+		2B451EBC6F83642790B3C068 /* StageStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageStatusView.swift; sourceTree = "<group>"; };
+		2BBC47FEE5C9360F4C95D2B1 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		2C2BE636A69A5146352973F9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3595DC85FDD3182A768EC143 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		420D02798B6688B99E7F1766 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		4D2F9FAF93DB12AF73442338 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		5F3EA70355F14419F76BDA76 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		62EDCD11FD90ED666444E66A /* AckReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AckReceiver.swift; sourceTree = "<group>"; };
+		6477FB1077091D8F503906F8 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
+		741D604447A383574CD6CBCA /* H264Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Encoder.swift; sourceTree = "<group>"; };
+		91974FBA5368AD0A67560DEE /* RtpSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RtpSender.swift; sourceTree = "<group>"; };
+		9BFBA19E9A1ED9DF87D99FEF /* RegistrationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationClient.swift; sourceTree = "<group>"; };
+		A2A101DA0C3AB6A5294A0DC7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C56A94DB1E53A11C17AFBF5A /* ReportDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDiscovery.swift; sourceTree = "<group>"; };
+		CFE534CE26FB412D767B2360 /* RtpPacketizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RtpPacketizer.swift; sourceTree = "<group>"; };
+		D3342A5605E5CD3ADC446272 /* BonjourPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BonjourPublisher.swift; sourceTree = "<group>"; };
+		D5840DDA4E3B615B5898918D /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		E8877CCDB31765FE2A8B850B /* CaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
+		FD9FED588752E4D850311C6D /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		967EEEE48B237A347CCCED18 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0FB7896F2BDD5EB828601B1C /* AVFoundation.framework in Frameworks */,
+				BB3A1DBC35C84EFE792C1A61 /* CoreMedia.framework in Frameworks */,
+				91D4068CB2997FD5854B17D1 /* CoreVideo.framework in Frameworks */,
+				60CAA00E6CB9BEC4E4E613C2 /* VideoToolbox.framework in Frameworks */,
+				2F047F43F7EC5EE24F81372A /* UIKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3715AF1F4AFE24817D388826 /* Encoder */ = {
+			isa = PBXGroup;
+			children = (
+				741D604447A383574CD6CBCA /* H264Encoder.swift */,
+			);
+			path = Encoder;
+			sourceTree = "<group>";
+		};
+		5313130DEF202BCAEFFC1088 /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				E8877CCDB31765FE2A8B850B /* CaptureSession.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		8355A98CE88B93018DD2A824 = {
+			isa = PBXGroup;
+			children = (
+				F4DD54CBE5AB205CE75F581B /* PrecogCam */,
+				DC08A84F6B0410C86E130CE5 /* Frameworks */,
+				98639BA6528D395635163C41 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		91DB3CEA615E696CE3C57DBD /* RTP */ = {
+			isa = PBXGroup;
+			children = (
+				CFE534CE26FB412D767B2360 /* RtpPacketizer.swift */,
+				91974FBA5368AD0A67560DEE /* RtpSender.swift */,
+			);
+			path = RTP;
+			sourceTree = "<group>";
+		};
+		98176D697CC3A3ACD0996667 /* Util */ = {
+			isa = PBXGroup;
+			children = (
+				420D02798B6688B99E7F1766 /* AppModel.swift */,
+				D5840DDA4E3B615B5898918D /* AppSettings.swift */,
+			);
+			path = Util;
+			sourceTree = "<group>";
+		};
+		98639BA6528D395635163C41 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				003C9498EA506F48F2E4ECF9 /* Witness.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B8FCAB51D1ABE1F7A6F6E1A3 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				6477FB1077091D8F503906F8 /* CameraPreview.swift */,
+				4D2F9FAF93DB12AF73442338 /* ContentView.swift */,
+				2C2BE636A69A5146352973F9 /* SettingsView.swift */,
+				2B451EBC6F83642790B3C068 /* StageStatusView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		DC08A84F6B0410C86E130CE5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2BBC47FEE5C9360F4C95D2B1 /* AVFoundation.framework */,
+				0ED3A1DAFB6146A021C939B4 /* CoreMedia.framework */,
+				5F3EA70355F14419F76BDA76 /* CoreVideo.framework */,
+				3595DC85FDD3182A768EC143 /* UIKit.framework */,
+				FD9FED588752E4D850311C6D /* VideoToolbox.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		F4DD54CBE5AB205CE75F581B /* PrecogCam */ = {
+			isa = PBXGroup;
+			children = (
+				A2A101DA0C3AB6A5294A0DC7 /* Info.plist */,
+				1AECEF0FCD1681364C59D93B /* PrecogCamApp.swift */,
+				5313130DEF202BCAEFFC1088 /* Capture */,
+				3715AF1F4AFE24817D388826 /* Encoder */,
+				FD8BA56CECED21CAD364E125 /* Network */,
+				91DB3CEA615E696CE3C57DBD /* RTP */,
+				B8FCAB51D1ABE1F7A6F6E1A3 /* UI */,
+				98176D697CC3A3ACD0996667 /* Util */,
+			);
+			path = PrecogCam;
+			sourceTree = "<group>";
+		};
+		FD8BA56CECED21CAD364E125 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				62EDCD11FD90ED666444E66A /* AckReceiver.swift */,
+				D3342A5605E5CD3ADC446272 /* BonjourPublisher.swift */,
+				9BFBA19E9A1ED9DF87D99FEF /* RegistrationClient.swift */,
+				C56A94DB1E53A11C17AFBF5A /* ReportDiscovery.swift */,
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8926EE529F16A78EF6D2B226 /* Witness */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2F2E6B6EA3D2685FCD451820 /* Build configuration list for PBXNativeTarget "Witness" */;
+			buildPhases = (
+				CF9EDFD30239A27D3D680A1A /* Sources */,
+				967EEEE48B237A347CCCED18 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Witness;
+			packageProductDependencies = (
+			);
+			productName = Witness;
+			productReference = 003C9498EA506F48F2E4ECF9 /* Witness.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5DE08BFC18210C8548FE82D8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					8926EE529F16A78EF6D2B226 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 7EF346C71AE527C30003F330 /* Build configuration list for PBXProject "Witness" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8355A98CE88B93018DD2A824;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 98639BA6528D395635163C41 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8926EE529F16A78EF6D2B226 /* Witness */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CF9EDFD30239A27D3D680A1A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F6A3A83D867327B45172DBE5 /* AckReceiver.swift in Sources */,
+				139BB67DD820A8E550C07F31 /* AppModel.swift in Sources */,
+				1C7EA774F119E6DB8579F135 /* AppSettings.swift in Sources */,
+				67CB24E29DD733B3C3D240D9 /* BonjourPublisher.swift in Sources */,
+				8050A735898C0126BF70C840 /* CameraPreview.swift in Sources */,
+				56C7D1FE0C54CFCEE10893EF /* CaptureSession.swift in Sources */,
+				C03AE9E8377FF210670B95D4 /* ContentView.swift in Sources */,
+				CFFC987EF5A9E46B715EFC93 /* H264Encoder.swift in Sources */,
+				B92C6259DA4E1E34822F84F5 /* PrecogCamApp.swift in Sources */,
+				1EB6B11713D222575D38C7BF /* RegistrationClient.swift in Sources */,
+				659DF947BB95EC1CD76228C3 /* ReportDiscovery.swift in Sources */,
+				E0409ED78A85F054F6D278E5 /* RtpPacketizer.swift in Sources */,
+				44AC093F285F16F9D24E5E5E /* RtpSender.swift in Sources */,
+				1E59DAE59EEFD62199A9E39C /* SettingsView.swift in Sources */,
+				DA159324B3EA0DEC3FBC7F1E /* StageStatusView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		079DEFD810EA130FD3E2FC6C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				INFOPLIST_FILE = PrecogCam/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = art.precrime.witness;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		42E228111FCADAE792CCA7E3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_BITCODE = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 0.2.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		A99EF3E3E26716F2AD788D18 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_BITCODE = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 0.2.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		D49A5F99B58D96D88A566395 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				INFOPLIST_FILE = PrecogCam/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = art.precrime.witness;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2F2E6B6EA3D2685FCD451820 /* Build configuration list for PBXNativeTarget "Witness" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D49A5F99B58D96D88A566395 /* Debug */,
+				079DEFD810EA130FD3E2FC6C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7EF346C71AE527C30003F330 /* Build configuration list for PBXProject "Witness" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42E228111FCADAE792CCA7E3 /* Debug */,
+				A99EF3E3E26716F2AD788D18 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5DE08BFC18210C8548FE82D8 /* Project object */;
+}

@@ -8,7 +8,7 @@ import os.log
 /// MulticastProbe — same path here for unicast keeps behavior identical when
 /// we later swap to multicast on entitlement approval).
 final class RtpSender {
-    private static let logger = Logger(subsystem: "art.precrime.PrecogCam", category: "RtpSender")
+    private static let logger = Logger(subsystem: "art.precrime.witness", category: "RtpSender")
     private var fd: Int32 = -1
     private var targetAddr = sockaddr_in()
     private(set) var host: String

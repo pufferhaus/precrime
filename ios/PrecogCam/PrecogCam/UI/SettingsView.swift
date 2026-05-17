@@ -129,7 +129,7 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    LabeledContent("Bundle", value: "art.precrime.PrecogCam")
+                    LabeledContent("Bundle", value: "art.precrime.witness")
                     LabeledContent("Transport", value: "H.264 / RTP / UDP unicast")
                     LabeledContent("RTP PT / clock", value: "96 / 90 kHz")
                     Text("Unicast today. Multicast parity with native PRECOG instances is blocked on Apple's `com.apple.developer.networking.multicast` entitlement (paid Apple Dev + manual Apple approval).")
