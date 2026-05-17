@@ -81,7 +81,9 @@ final class AppModel: ObservableObject {
         settingsObservers.append(settings.$stageMode.sink { [weak self] on in
             self?.applyStageMode(on)
         })
-        settingsObservers.append(settings.$kioskMode.sink { [weak self] on in
+        // dropFirst() skips the initial emission — kiosk activation happens
+        // in bootstrap() after the UI is on screen, not during init.
+        settingsObservers.append(settings.$kioskMode.dropFirst().sink { [weak self] on in
             self?.applyKioskMode(on)
         })
         // When source identity changes, republish Bonjour TXT.
@@ -135,9 +137,15 @@ final class AppModel: ObservableObject {
             return
         }
         UIApplication.shared.isIdleTimerDisabled = true
-        if settings.kioskMode { applyKioskMode(true) }
         startEncodePipeline()
         startNetworkDiscovery()
+        // Delay kiosk activation until the UI is fully on screen — iOS rejects
+        // UIAccessibility.requestGuidedAccessSession calls made before the app
+        // window is visible.
+        if settings.kioskMode {
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            applyKioskMode(true)
+        }
     }
 
     // MARK: - Encode pipeline (camera + encoder, no RTP target yet)
