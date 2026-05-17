@@ -81,21 +81,29 @@ fn build_pipeline_string(cfg: &PrecogConfig) -> String {
         fr = cfg.framerate
     );
     let name_escaped = cfg.ndi_name.replace('\\', "\\\\").replace('"', "\\\"");
+    let src = source_element_str(&cfg.device);
     if cfg.use_combiner {
         format!(
-            r#"v4l2src device="{dev}" ! {caps} ! videoconvert ! ndisinkcombiner name=c c.src ! ndisink ndi-name="{name}""#,
-            dev = cfg.device,
-            caps = caps,
-            name = name_escaped,
+            r#"{src} ! {caps} ! videoconvert ! ndisinkcombiner name=c c.src ! ndisink ndi-name="{name_escaped}""#
         )
     } else {
-        format!(
-            r#"v4l2src device="{dev}" ! {caps} ! videoconvert ! ndisink ndi-name="{name}""#,
-            dev = cfg.device,
-            caps = caps,
-            name = name_escaped,
-        )
+        format!(r#"{src} ! {caps} ! videoconvert ! ndisink ndi-name="{name_escaped}""#)
     }
+}
+
+/// Platform-specific video source element. Linux uses V4L2 with a device path;
+/// macOS (dev only) uses AVFoundation with a numeric device index parsed from
+/// `device` (fallback 0). The mac branch exists so the precog binary can be
+/// smoke-tested against the host webcam; production deploys are Pi-only.
+#[cfg(target_os = "linux")]
+fn source_element_str(device: &str) -> String {
+    format!(r#"v4l2src device="{device}""#)
+}
+
+#[cfg(target_os = "macos")]
+fn source_element_str(device: &str) -> String {
+    let idx: u32 = device.parse().unwrap_or(0);
+    format!("avfvideosrc device-index={idx}")
 }
 
 /// Install a panic hook that logs via tracing then exits with code 101 so
@@ -132,5 +140,77 @@ fn init_tracing() {
         Err(_) => {
             fmt().with_env_filter(env_filter).init();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_pipeline_string, source_element_str};
+    use crate::config::PrecogConfig;
+
+    fn cfg(use_combiner: bool, device: &str) -> PrecogConfig {
+        let raw = format!(
+            r#"
+ndi_name = "PRECOG-99-MAC-TEST"
+device = "{device}"
+format = "UYVY"
+width = 1280
+height = 720
+framerate = "30/1"
+use_combiner = {use_combiner}
+"#
+        );
+        PrecogConfig::from_toml(&raw).unwrap()
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_uses_v4l2src_with_device_path() {
+        let s = source_element_str("/dev/video0");
+        assert_eq!(s, r#"v4l2src device="/dev/video0""#);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_uses_avfvideosrc_with_index() {
+        assert_eq!(source_element_str("0"), "avfvideosrc device-index=0");
+        assert_eq!(source_element_str("2"), "avfvideosrc device-index=2");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_falls_back_to_zero_for_non_numeric_device() {
+        assert_eq!(
+            source_element_str("/dev/video0"),
+            "avfvideosrc device-index=0"
+        );
+    }
+
+    #[test]
+    fn pipeline_uses_combiner_when_set() {
+        let s = build_pipeline_string(&cfg(true, "0"));
+        assert!(s.contains("ndisinkcombiner name=c c.src ! ndisink"));
+    }
+
+    #[test]
+    fn pipeline_skips_combiner_when_unset() {
+        let s = build_pipeline_string(&cfg(false, "0"));
+        assert!(!s.contains("ndisinkcombiner"));
+        assert!(s.contains("videoconvert ! ndisink"));
+    }
+
+    #[test]
+    fn pipeline_escapes_quotes_and_backslashes_in_ndi_name() {
+        let raw = r#"
+ndi_name = "BAD\"NAME"
+device = "0"
+format = "UYVY"
+width = 1280
+height = 720
+framerate = "30/1"
+"#;
+        let c = PrecogConfig::from_toml(raw).unwrap();
+        let s = build_pipeline_string(&c);
+        assert!(s.contains(r#"ndi-name="BAD\"NAME""#));
     }
 }
