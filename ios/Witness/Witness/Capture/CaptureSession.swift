@@ -138,6 +138,12 @@ final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
 
     // MARK: - Focus
 
+    /// Called on the main queue when the device detects the scene has changed
+    /// enough that a locked focus point is stale (subject moved, lighting shift).
+    var onSubjectAreaChanged: (() -> Void)?
+
+    private var subjectAreaObserver: NSObjectProtocol?
+
     /// True if the current device supports tap-to-focus.
     var isFocusLockSupported: Bool {
         guard let device = currentDevice else { return false }
@@ -147,7 +153,8 @@ final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
     }
 
     /// Set focus point and lock. Point is normalised (0–1, origin top-left, AVFoundation convention).
-    /// Sets .autoFocus first; after 0.8 s switches to .locked.
+    /// Sets .autoFocus first; after 0.8 s switches to .locked and enables
+    /// subject-area change monitoring so a stale lock falls back to continuous AF.
     func setFocusPoint(_ point: CGPoint) {
         guard let device = currentDevice,
               device.isFocusPointOfInterestSupported,
@@ -156,11 +163,23 @@ final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
             try device.lockForConfiguration()
             device.focusPointOfInterest = point
             device.focusMode = .autoFocus
+            device.isSubjectAreaChangeMonitoringEnabled = true
             device.unlockForConfiguration()
         } catch {
             Self.logger.error("setFocusPoint lockForConfiguration: \(error.localizedDescription)")
             return
         }
+
+        // Observe subject-area changes so a stale lock auto-releases.
+        subjectAreaObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.subjectAreaDidChangeNotification,
+            object: device,
+            queue: .main
+        ) { [weak self] _ in
+            self?.resetFocus()
+            self?.onSubjectAreaChanged?()
+        }
+
         // After the AF sweep completes (~0.8 s), pin to .locked.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             guard let device = self?.currentDevice,
@@ -175,13 +194,18 @@ final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         }
     }
 
-    /// Return to continuous autofocus.
+    /// Return to continuous autofocus and stop subject-area monitoring.
     func resetFocus() {
+        if let obs = subjectAreaObserver {
+            NotificationCenter.default.removeObserver(obs)
+            subjectAreaObserver = nil
+        }
         guard let device = currentDevice,
               device.isFocusModeSupported(.continuousAutoFocus) else { return }
         do {
             try device.lockForConfiguration()
             device.focusMode = .continuousAutoFocus
+            device.isSubjectAreaChangeMonitoringEnabled = false
             device.unlockForConfiguration()
         } catch {
             Self.logger.error("resetFocus lockForConfiguration: \(error.localizedDescription)")

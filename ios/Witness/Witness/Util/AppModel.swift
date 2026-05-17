@@ -71,6 +71,9 @@ final class AppModel: ObservableObject {
         capture.onFrame = { pixelBuffer, pts in
             hot.encoder?.encode(pixelBuffer: pixelBuffer, pts: pts)
         }
+        capture.onSubjectAreaChanged = { [weak self] in
+            self?.focusState = .continuous
+        }
 
         settingsObservers.append(settings.$zoomFactor.sink { [weak self] z in
             self?.capture.applyZoom(CGFloat(z))
