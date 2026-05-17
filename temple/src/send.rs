@@ -15,10 +15,16 @@ impl Sender {
     /// Bind an ephemeral UDP socket and configure it to send to `group:port`
     /// with multicast TTL=1.
     pub fn new(group: Ipv4Addr, port: u16) -> Result<Self> {
+        anyhow::ensure!(
+            group.is_multicast(),
+            "group {group} is not a multicast address (224.0.0.0/4)"
+        );
         let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))
             .context("create UDP socket")?;
         socket.set_multicast_ttl_v4(1).context("set mcast TTL")?;
-        socket.set_multicast_loop_v4(true).context("enable mcast loopback")?;
+        socket
+            .set_multicast_loop_v4(true)
+            .context("enable mcast loopback")?;
         socket
             .bind(&SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0).into())
             .context("bind ephemeral port")?;
@@ -69,5 +75,11 @@ mod tests {
             },
         });
         assert!(s.send(&b).is_ok());
+    }
+
+    #[test]
+    fn sender_rejects_non_multicast_group() {
+        let s = Sender::new(Ipv4Addr::new(192, 168, 1, 1), 9999);
+        assert!(s.is_err(), "expected non-multicast address to be rejected");
     }
 }
