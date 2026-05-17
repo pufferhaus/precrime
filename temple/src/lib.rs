@@ -1,4 +1,12 @@
 //! PRECRIME temple ball.
+//!
+//! Wire format and UDP multicast send/receive helpers shared between PRECOG
+//! (sender) and REPORT (receiver). The ball advertises one PRECOG source
+//! per JSON message, sent every `BALL_PERIOD_SECS` on the temple channel.
+
+pub mod ball;
+
+pub use ball::{Ball, BallV1, RtpInfo, VideoInfo};
 
 pub const DEFAULT_TEMPLE_GROUP: &str = "239.42.0.1";
 pub const DEFAULT_TEMPLE_PORT: u16 = 9999;
