@@ -84,7 +84,7 @@ device       = "/dev/video0"
 format       = "YUY2"        # GStreamer name for YUYV — do not use "YUYV"
 width        = 720
 height       = 480
-framerate    = "30/1"        # NTSC; use "25/1" for PAL
+framerate    = "30/1"        # NTSC; use height=576 + framerate="25/1" for PAL
 
 rtp_mcast    = "239.42.1.1"  # unique per unit — see multiple-unit table below
 rtp_port     = 5000

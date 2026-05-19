@@ -3,9 +3,9 @@
 source_name  = "PRECOG-01-CCTV-DOOR"   # shown in REPORT and TEMPLE balls
 device       = "/dev/video0"            # v4l2 device; verify with v4l2-ctl --list-devices
 format       = "YUY2"                   # GStreamer name for YUYV; check with v4l2-ctl -d /dev/video0 --list-formats-ext
-width        = 640
+width        = 720
 height       = 480
-framerate    = "30/1"                   # NTSC composite; use "25/1" for PAL
+framerate    = "30/1"                   # NTSC composite (720x480); use 25/1 + height=576 for PAL
 
 rtp_mcast    = "239.42.1.1"            # unique per source unit (see multiple-unit table in runbook)
 rtp_port     = 5000
