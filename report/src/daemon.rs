@@ -59,11 +59,9 @@ impl Daemon {
         // Shared source snapshots — written by their respective producer threads,
         // read in the event loop for merging.
         let temple_snapshot: Arc<Mutex<Vec<Source>>> = Arc::new(Mutex::new(Vec::new()));
-        let registered: Arc<std::sync::Mutex<RegisteredSources>> =
-            Arc::new(std::sync::Mutex::new(RegisteredSources::new(
-                self.cfg.rtp_port_min,
-                self.cfg.rtp_port_max,
-            )));
+        let registered: Arc<std::sync::Mutex<RegisteredSources>> = Arc::new(std::sync::Mutex::new(
+            RegisteredSources::new(self.cfg.rtp_port_min, self.cfg.rtp_port_max),
+        ));
 
         // Single unified signal channel: any producer sends () to trigger a merge.
         let (change_tx, change_rx) = channel::<()>();
@@ -343,9 +341,7 @@ fn balls_to_sources(balls: Vec<Ball>) -> Vec<Source> {
         .filter_map(|b| match b {
             Ball::V1(v) if v.name.starts_with("PRECOG-") => Some(Source {
                 name: v.name,
-                transport: crate::pipeline::Transport::Multicast {
-                    group: v.rtp.mcast,
-                },
+                transport: crate::pipeline::Transport::Multicast { group: v.rtp.mcast },
                 port: v.rtp.port,
                 payload_type: v.rtp.pt,
                 clock_rate: v.rtp.clock_rate,
@@ -424,7 +420,9 @@ mod tests {
         assert_eq!(sources[0].name, "PRECOG-01-X");
         assert_eq!(
             sources[0].transport,
-            Transport::Multicast { group: "239.42.1.1".into() }
+            Transport::Multicast {
+                group: "239.42.1.1".into()
+            }
         );
         assert_eq!(sources[0].payload_type, 96);
         assert_eq!(sources[0].host, Some("10.0.0.1".into()));

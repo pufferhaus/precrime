@@ -4,10 +4,7 @@
 /// Returns the child process on success so the caller can kill it on shutdown.
 /// Returns `None` on non-Linux targets or if the command is unavailable.
 #[cfg(target_os = "linux")]
-pub fn spawn_bonjour_publisher(
-    report_name: &str,
-    reg_port: u16,
-) -> Option<std::process::Child> {
+pub fn spawn_bonjour_publisher(report_name: &str, reg_port: u16) -> Option<std::process::Child> {
     std::process::Command::new("avahi-publish-service")
         .args([
             report_name,

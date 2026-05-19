@@ -8,7 +8,7 @@ use std::net::UdpSocket;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tracing::{warn};
+use tracing::warn;
 
 /// Spawn a background thread that sends UDP ack packets every 2 seconds to all
 /// known source hosts (both registered unicast sources and temple multicast

@@ -179,9 +179,7 @@ fn handle_registration(
         }
     };
 
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .ok();
+    stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
 
     let mut reader = BufReader::new(&stream);
     let mut line = String::new();
@@ -326,8 +324,7 @@ mod tests {
         assert_eq!(reg.sources.len(), 1);
 
         // Force-stale by backfilling last_seen.
-        reg.sources.get_mut("CAM-1").unwrap().last_seen =
-            Instant::now() - Duration::from_secs(60);
+        reg.sources.get_mut("CAM-1").unwrap().last_seen = Instant::now() - Duration::from_secs(60);
 
         let evicted = reg.evict_stale(Duration::from_secs(30));
         assert_eq!(evicted, vec!["CAM-1".to_owned()]);

@@ -243,12 +243,16 @@ pub fn build_preview(
 
 #[cfg(test)]
 mod tests {
-    use super::{preview_pipeline_string, program_pipeline_string, Source, Transport, H264_DECODER};
+    use super::{
+        preview_pipeline_string, program_pipeline_string, Source, Transport, H264_DECODER,
+    };
 
     fn s(name: &str, mcast: &str, port: u16) -> Source {
         Source {
             name: name.into(),
-            transport: Transport::Multicast { group: mcast.into() },
+            transport: Transport::Multicast {
+                group: mcast.into(),
+            },
             port,
             payload_type: 96,
             clock_rate: 90000,
