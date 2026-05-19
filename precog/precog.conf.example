@@ -2,7 +2,7 @@
 
 source_name  = "PRECOG-01-CCTV-DOOR"   # shown in REPORT and TEMPLE balls
 device       = "/dev/video0"            # v4l2 device; verify with v4l2-ctl --list-devices
-format       = "YUYV"                   # check with v4l2-ctl -d /dev/video0 --list-formats-ext
+format       = "YUY2"                   # GStreamer name for YUYV; check with v4l2-ctl -d /dev/video0 --list-formats-ext
 width        = 640
 height       = 480
 framerate    = "30/1"                   # NTSC composite; use "25/1" for PAL

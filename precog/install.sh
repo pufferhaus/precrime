@@ -11,7 +11,6 @@ sudo apt install -y \
     gstreamer1.0-plugins-bad \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
-    gstreamer1.0-plugins-rs \
     v4l-utils
 
 echo "Install complete. Run 'make deploy-precog PRECOG_HOST=$(hostname)' from the macOS dev machine."
