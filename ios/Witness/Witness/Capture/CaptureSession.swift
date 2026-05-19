@@ -54,10 +54,17 @@ final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         }
     }
 
-    func configure(side: CameraSide, resolution: CaptureResolution, fps: Int32) {
+    func configure(side: CameraSide, resolution: CaptureResolution, fps: Int32, completion: (() -> Void)? = nil) {
         self.resolution = resolution
         self.fps = fps
 
+        captureQueue.async { [weak self] in
+            self?._configure(side: side, resolution: resolution, fps: fps)
+            completion?()
+        }
+    }
+
+    private func _configure(side: CameraSide, resolution: CaptureResolution, fps: Int32) {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 

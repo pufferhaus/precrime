@@ -160,46 +160,44 @@ final class AppModel: ObservableObject {
 
     private func startEncodePipeline() {
         guard hot.encoder == nil else { return }
+
+        let (w, h) = nativeDimensions(for: settings.resolution)
+        let packetizer = RtpPacketizer(ssrc: Self.ssrcFromName(settings.sourceName))
+        let sender = RtpSender()
+
+        // Configure camera on captureQueue (off main thread) then init encoder.
         capture.configure(
             side: settings.cameraSide,
             resolution: settings.resolution,
             fps: settings.fps
-        )
-
-        let (w, h) = nativeDimensions(for: settings.resolution)
-        let encoder: H264Encoder
-        do {
-            encoder = try H264Encoder(
-                width: w, height: h,
-                fps: settings.fps,
-                bitrateBps: settings.bitrateKbps * 1000
-            )
-        } catch {
-            lastError = "Encoder init failed: \(error.localizedDescription)"
-            return
+        ) { [weak self] in
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.hot.encoder == nil else { return }
+                let encoder: H264Encoder
+                do {
+                    encoder = try H264Encoder(
+                        width: w, height: h,
+                        fps: self.settings.fps,
+                        bitrateBps: self.settings.bitrateKbps * 1000
+                    )
+                } catch {
+                    self.lastError = "Encoder init failed: \(error.localizedDescription)"
+                    return
+                }
+                encoder.onOutput = { nalus, pts, _ in
+                    let packets = packetizer.packetize(nalus: nalus, pts: pts)
+                    sender.sendBatch(packets)
+                }
+                self.hot.encoder = encoder
+                self.hot.packetizer = packetizer
+                self.hot.sender = sender
+                self.capture.start()
+                self.capture.applyZoom(CGFloat(self.settings.zoomFactor))
+                self.capture.applyExposureBias(Float(self.settings.exposureBias))
+                self.isStreaming = true
+                Self.logger.info("encode pipeline started: \(self.settings.resolution.label)/\(self.settings.fps)fps \(self.settings.bitrateKbps)kbps")
+            }
         }
-
-        let packetizer = RtpPacketizer(ssrc: Self.ssrcFromName(settings.sourceName))
-        // Create sender with no target — sends are no-ops until retarget().
-        let sender = RtpSender()
-
-        encoder.onOutput = { nalus, pts, _ in
-            let packets = packetizer.packetize(nalus: nalus, pts: pts)
-            sender.sendBatch(packets)
-        }
-
-        hot.encoder = encoder
-        hot.packetizer = packetizer
-        hot.sender = sender
-
-        capture.start()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            guard let self else { return }
-            self.capture.applyZoom(CGFloat(self.settings.zoomFactor))
-            self.capture.applyExposureBias(Float(self.settings.exposureBias))
-        }
-        isStreaming = true
-        Self.logger.info("encode pipeline started: \(self.settings.resolution.label)/\(self.settings.fps)fps \(self.settings.bitrateKbps)kbps")
     }
 
     private func stopEncodePipeline() {
