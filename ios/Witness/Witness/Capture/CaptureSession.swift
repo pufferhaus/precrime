@@ -117,7 +117,7 @@ final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
 
         if let connection = videoOutput.connection(with: .video) {
             if connection.isVideoOrientationSupported {
-                connection.videoOrientation = .landscapeRight
+                connection.videoOrientation = .landscapeLeft
             }
         }
     }
