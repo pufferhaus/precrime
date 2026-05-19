@@ -130,7 +130,9 @@ final class AppModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.guidedAccessActive = UIAccessibility.isGuidedAccessEnabled
+            Task { @MainActor [weak self] in
+                self?.guidedAccessActive = UIAccessibility.isGuidedAccessEnabled
+            }
         }
     }
 
@@ -331,7 +333,7 @@ final class AppModel: ObservableObject {
                 // Arm keep-alive re-registration timer (every 15s).
                 keepAliveTimer?.invalidate()
                 keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
-                    self?.keepAliveReregister()
+                    Task { @MainActor [weak self] in self?.keepAliveReregister() }
                 }
             }
 
@@ -377,7 +379,7 @@ final class AppModel: ObservableObject {
         ackWatchTimer?.invalidate()
         lastAckAt = nil
         ackWatchTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.checkAckTimeout()
+            Task { @MainActor [weak self] in self?.checkAckTimeout() }
         }
     }
 
