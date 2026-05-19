@@ -500,8 +500,8 @@ final class AppModel: ObservableObject {
 
     private func nativeDimensions(for r: CaptureResolution) -> (Int32, Int32) {
         switch r {
-        case .vga:   return (640, 480)
-        case .hd720: return (1280, 720)
+        case .vga:   return (480, 640)
+        case .hd720: return (720, 1280)
         }
     }
 
