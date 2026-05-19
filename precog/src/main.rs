@@ -93,7 +93,7 @@ pub fn build_pipeline_string(cfg: &PrecogConfig) -> String {
     let mcast = cfg.rtp_mcast;
     let port = cfg.rtp_port;
     format!(
-        "{src} ! {caps} ! videoconvert ! \
+        "{src} ! {caps} ! deinterlace ! videoconvert ! \
          x264enc tune=zerolatency speed-preset=ultrafast bitrate={bitrate} key-int-max=30 ! \
          video/x-h264,profile=baseline ! \
          h264parse config-interval=1 ! \
