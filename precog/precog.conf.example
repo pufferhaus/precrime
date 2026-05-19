@@ -1,10 +1,17 @@
 # /etc/precog/precog.conf — copy and edit per unit.
 
-ndi_name  = "PRECOG-02-CCTV-DOOR"
-device    = "/dev/video0"
-format    = "UYVY"
-width     = 720
-height    = 480
-framerate = "30/1"
-# Set to false if `ndisinkcombiner` is unavailable in your gst-plugin-rs build.
-use_combiner = true
+source_name  = "PRECOG-01-CCTV-DOOR"   # shown in REPORT and TEMPLE balls
+device       = "/dev/video0"            # v4l2 device; verify with v4l2-ctl --list-devices
+format       = "YUYV"                   # check with v4l2-ctl -d /dev/video0 --list-formats-ext
+width        = 640
+height       = 480
+framerate    = "30/1"                   # NTSC composite; use "25/1" for PAL
+
+rtp_mcast    = "239.42.1.1"            # unique per source unit (see multiple-unit table in runbook)
+rtp_port     = 5000
+bitrate_kbps = 1500                     # 1500 for 480p; raise to 4000 for 720p+
+
+# Optional overrides (defaults shown):
+# temple_group = "239.42.0.1"
+# temple_port  = 9999
+# host         = "0.0.0.0"             # IP advertised in TEMPLE balls (informational)
