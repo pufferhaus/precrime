@@ -162,40 +162,42 @@ final class AppModel: ObservableObject {
         guard hot.encoder == nil else { return }
 
         let (w, h) = nativeDimensions(for: settings.resolution)
+        let fps = settings.fps
+        let bitrateKbps = settings.bitrateKbps
+        let zoom = CGFloat(settings.zoomFactor)
+        let ev = Float(settings.exposureBias)
         let packetizer = RtpPacketizer(ssrc: Self.ssrcFromName(settings.sourceName))
         let sender = RtpSender()
 
-        // Configure camera on captureQueue (off main thread) then init encoder.
+        // Camera configure + VideoToolbox encoder init both run on captureQueue —
+        // keeps the main thread free during the ~2–8s startup heavy work.
         capture.configure(
             side: settings.cameraSide,
             resolution: settings.resolution,
-            fps: settings.fps
+            fps: fps
         ) { [weak self] in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.hot.encoder == nil else { return }
-                let encoder: H264Encoder
-                do {
-                    encoder = try H264Encoder(
-                        width: w, height: h,
-                        fps: self.settings.fps,
-                        bitrateBps: self.settings.bitrateKbps * 1000
-                    )
-                } catch {
-                    self.lastError = "Encoder init failed: \(error.localizedDescription)"
-                    return
-                }
-                encoder.onOutput = { nalus, pts, _ in
-                    let packets = packetizer.packetize(nalus: nalus, pts: pts)
-                    sender.sendBatch(packets)
-                }
-                self.hot.encoder = encoder
-                self.hot.packetizer = packetizer
-                self.hot.sender = sender
-                self.capture.start()
-                self.capture.applyZoom(CGFloat(self.settings.zoomFactor))
-                self.capture.applyExposureBias(Float(self.settings.exposureBias))
+            guard let self, self.hot.encoder == nil else { return }
+            let encoder: H264Encoder
+            do {
+                encoder = try H264Encoder(width: w, height: h, fps: fps,
+                                          bitrateBps: bitrateKbps * 1000)
+            } catch {
+                DispatchQueue.main.async { self.lastError = "Encoder init failed: \(error.localizedDescription)" }
+                return
+            }
+            encoder.onOutput = { nalus, pts, _ in
+                let packets = packetizer.packetize(nalus: nalus, pts: pts)
+                sender.sendBatch(packets)
+            }
+            self.hot.encoder = encoder
+            self.hot.packetizer = packetizer
+            self.hot.sender = sender
+            self.capture.start()
+            DispatchQueue.main.async {
+                self.capture.applyZoom(zoom)
+                self.capture.applyExposureBias(ev)
                 self.isStreaming = true
-                Self.logger.info("encode pipeline started: \(self.settings.resolution.label)/\(self.settings.fps)fps \(self.settings.bitrateKbps)kbps")
+                Self.logger.info("encode pipeline started: \(self.settings.resolution.label)/\(fps)fps \(bitrateKbps)kbps")
             }
         }
     }
