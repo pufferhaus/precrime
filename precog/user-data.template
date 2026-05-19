@@ -1,0 +1,45 @@
+#cloud-config
+# Raspberry Pi Imager cloud-init template for PRECOG units.
+# Copy to the FAT32 boot partition as "user-data" before first boot.
+# Edit HOSTNAME and SOURCE_NAME before flashing.
+
+manage_resolv_conf: false
+
+hostname: precog-01          # change per unit: precog-01, precog-02, etc.
+manage_etc_hosts: true
+
+packages:
+  - avahi-daemon
+
+apt:
+  preserve_sources_list: true
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+
+timezone: America/Los_Angeles
+keyboard:
+  model: pc105
+  layout: "us"
+
+users:
+  - name: pi
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: ""                 # set a real hash via Raspberry Pi Imager, or leave blank for key-only
+    ssh_authorized_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHyn+xKQ91kipLH401z/IyP6pfdfKqpZMeWJ8r7KWSTB cody@harshrealm.group"
+
+write_files:
+  - path: /etc/sudoers.d/010_pi-nopasswd
+    content: "pi ALL=(ALL) NOPASSWD:ALL\n"
+    permissions: '0440'
+    owner: root:root
+
+enable_ssh: true
+ssh_pwauth: false
+
+rpi:
+  interfaces:
+    serial: true
