@@ -22,6 +22,7 @@
 		87F7DA2E026837E1A1437AEB /* ReportDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E0AE4B3877FFBAB4B6DCDA6 /* ReportDiscovery.swift */; };
 		88B68617596D88091F5D64D7 /* H264Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DA57E5CE5F0FDB9873CA9F /* H264Encoder.swift */; };
 		8C0BEC3102610EF3062C729B /* CaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08FB0CDB72C0B369D1A34192 /* CaptureSession.swift */; };
+		EE529B7A002F49119A37FD3D /* FrameCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F90E019377F4B6A8C1EE01A /* FrameCropper.swift */; };
 		91D4068CB2997FD5854B17D1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5F3EA70355F14419F76BDA76 /* CoreVideo.framework */; };
 		93522736B95291B0F8DC9DA2 /* WitnessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8997FA9760B115038B506E /* WitnessApp.swift */; };
 		BB3A1DBC35C84EFE792C1A61 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0ED3A1DAFB6146A021C939B4 /* CoreMedia.framework */; };
@@ -32,6 +33,7 @@
 /* Begin PBXFileReference section */
 		003C9498EA506F48F2E4ECF9 /* Witness.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Witness.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08FB0CDB72C0B369D1A34192 /* CaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
+		3F90E019377F4B6A8C1EE01A /* FrameCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameCropper.swift; sourceTree = "<group>"; };
 		0ED3A1DAFB6146A021C939B4 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		1F8997FA9760B115038B506E /* WitnessApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WitnessApp.swift; sourceTree = "<group>"; };
 		25DA57E5CE5F0FDB9873CA9F /* H264Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Encoder.swift; sourceTree = "<group>"; };
@@ -117,6 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				08FB0CDB72C0B369D1A34192 /* CaptureSession.swift */,
+				3F90E019377F4B6A8C1EE01A /* FrameCropper.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -198,7 +201,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					8926EE529F16A78EF6D2B226 = {
 						ProvisioningStyle = Automatic;
@@ -235,6 +238,7 @@
 				FD567A9C0DFC980E5D4078C8 /* BonjourPublisher.swift in Sources */,
 				2ABA43AEBBA3ECD6CE52D0A5 /* CameraPreview.swift in Sources */,
 				8C0BEC3102610EF3062C729B /* CaptureSession.swift in Sources */,
+				EE529B7A002F49119A37FD3D /* FrameCropper.swift in Sources */,
 				41EF7A0528EA715970FC36EC /* ContentView.swift in Sources */,
 				88B68617596D88091F5D64D7 /* H264Encoder.swift in Sources */,
 				42411EE9D72FD05A1CF11579 /* RegistrationClient.swift in Sources */,
@@ -256,7 +260,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 945YA3Q2PV;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				INFOPLIST_FILE = Witness/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -307,9 +310,11 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 945YA3Q2PV;
 				ENABLE_BITCODE = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -331,6 +336,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -373,9 +379,11 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 945YA3Q2PV;
 				ENABLE_BITCODE = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -390,6 +398,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
@@ -402,7 +411,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 945YA3Q2PV;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				INFOPLIST_FILE = Witness/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

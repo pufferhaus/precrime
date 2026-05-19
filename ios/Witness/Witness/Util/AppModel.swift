@@ -69,7 +69,12 @@ final class AppModel: ObservableObject {
         self.settings = settings
         let hot = self.hot
         capture.onFrame = { pixelBuffer, pts in
-            hot.encoder?.encode(pixelBuffer: pixelBuffer, pts: pts)
+            if let cropper = hot.cropper,
+               let cropped = cropper.crop(pixelBuffer) {
+                hot.encoder?.encode(pixelBuffer: cropped, pts: pts)
+            } else {
+                hot.encoder?.encode(pixelBuffer: pixelBuffer, pts: pts)
+            }
         }
         capture.onSubjectAreaChanged = { [weak self] in
             self?.focusState = .continuous
@@ -192,6 +197,7 @@ final class AppModel: ObservableObject {
             self.hot.encoder = encoder
             self.hot.packetizer = packetizer
             self.hot.sender = sender
+            self.hot.cropper = FrameCropper(outputWidth: Int(w), outputHeight: Int(h))
             self.capture.start()
             DispatchQueue.main.async {
                 self.capture.applyZoom(zoom)
@@ -207,6 +213,7 @@ final class AppModel: ObservableObject {
         hot.sender = nil
         hot.packetizer = nil
         hot.encoder = nil
+        hot.cropper = nil
         isStreaming = false
     }
 
@@ -495,15 +502,18 @@ final class AppModel: ObservableObject {
 
     private func resolutionString() -> String {
         switch settings.resolution {
-        case .vga:   return "640x480"
-        case .hd720: return "1280x720"
+        case .vga:   return "480x270"
+        case .hd720: return "720x405"
         }
     }
 
+    // Returns the encoder/output dimensions after portrait-to-landscape crop.
+    // Capture presets are wider (640×480, 1280×720); after 90° CW rotation and
+    // 16:9 center-crop the output is narrower in one axis.
     private func nativeDimensions(for r: CaptureResolution) -> (Int32, Int32) {
         switch r {
-        case .vga:   return (640, 480)
-        case .hd720: return (1280, 720)
+        case .vga:   return (480, 270)   // 640×480 → rotate → 480×640 → crop 16:9
+        case .hd720: return (720, 405)   // 1280×720 → rotate → 720×1280 → crop 16:9
         }
     }
 
@@ -548,4 +558,5 @@ final class HotState: @unchecked Sendable {
     var encoder: H264Encoder?
     var packetizer: RtpPacketizer?
     var sender: RtpSender?
+    var cropper: FrameCropper?
 }

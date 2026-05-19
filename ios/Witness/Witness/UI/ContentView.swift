@@ -18,6 +18,11 @@ struct ContentView: View {
                     }
                 )
                 .ignoresSafeArea()
+                .overlay(
+                    CropGuideOverlay(resolution: model.settings.resolution)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                )
             } else {
                 VStack(spacing: 12) {
                     Text("WITNESS").font(.title.monospaced())
@@ -145,6 +150,66 @@ struct ContentView: View {
                 .environmentObject(model)
         }
         .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - Crop guide overlay
+
+/// Corner-bracket markers showing the 16:9 crop zone that FrameCropper sends to the encoder.
+/// The preview layer shows the scene upright (portrait default); the crop zone is a
+/// horizontal center band — marked by brackets at its top and bottom edges.
+private struct CropGuideOverlay: View {
+    let resolution: CaptureResolution
+
+    var body: some View {
+        GeometryReader { geo in
+            // Preview shows portrait image: narrow side = captureHeight, tall side = captureWidth.
+            let portraitAspect = resolution.captureSize.height / resolution.captureSize.width
+            let imgRect = letterboxedRect(viewSize: geo.size, imageAspect: portraitAspect)
+            let guide   = resolution.cropGuideNormY
+            let topY    = imgRect.minY + guide.top    * imgRect.height
+            let bottomY = imgRect.minY + guide.bottom * imgRect.height
+
+            CropBrackets(top: topY, bottom: bottomY, left: imgRect.minX, right: imgRect.maxX)
+                .stroke(.white.opacity(0.55), lineWidth: 1.5)
+        }
+    }
+
+    private func letterboxedRect(viewSize: CGSize, imageAspect: CGFloat) -> CGRect {
+        let viewAspect = viewSize.width / viewSize.height
+        if viewAspect < imageAspect {
+            let h = viewSize.width / imageAspect
+            return CGRect(x: 0, y: (viewSize.height - h) / 2, width: viewSize.width, height: h)
+        } else {
+            let w = viewSize.height * imageAspect
+            return CGRect(x: (viewSize.width - w) / 2, y: 0, width: w, height: viewSize.height)
+        }
+    }
+}
+
+private struct CropBrackets: Shape {
+    let top, bottom, left, right: CGFloat
+    private let arm: CGFloat = 20
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        // top-left
+        p.move(to: CGPoint(x: left,        y: top + arm))
+        p.addLine(to: CGPoint(x: left,     y: top))
+        p.addLine(to: CGPoint(x: left + arm, y: top))
+        // top-right
+        p.move(to: CGPoint(x: right - arm, y: top))
+        p.addLine(to: CGPoint(x: right,    y: top))
+        p.addLine(to: CGPoint(x: right,    y: top + arm))
+        // bottom-left
+        p.move(to: CGPoint(x: left + arm,  y: bottom))
+        p.addLine(to: CGPoint(x: left,     y: bottom))
+        p.addLine(to: CGPoint(x: left,     y: bottom - arm))
+        // bottom-right
+        p.move(to: CGPoint(x: right - arm, y: bottom))
+        p.addLine(to: CGPoint(x: right,    y: bottom))
+        p.addLine(to: CGPoint(x: right,    y: bottom - arm))
+        return p
     }
 }
 

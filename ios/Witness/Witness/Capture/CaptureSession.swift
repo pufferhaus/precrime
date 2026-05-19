@@ -26,6 +26,26 @@ enum CaptureResolution: String, CaseIterable, Identifiable {
         case .hd720: return "1280×720"
         }
     }
+
+    /// Raw capture frame size (landscapeRight orientation).
+    var captureSize: CGSize {
+        switch self {
+        case .vga:   return CGSize(width: 640, height: 480)
+        case .hd720: return CGSize(width: 1280, height: 720)
+        }
+    }
+
+    /// Normalized Y range [0,1] of the 16:9 crop zone as it appears in the portrait preview.
+    /// The preview layer shows the scene upright (portrait); the crop is a horizontal center band.
+    /// FrameCropper rotates 90° CW then takes the center 16:9 strip — in portrait terms that's
+    /// the middle (captureHeight × 9/16) rows of the (captureWidth)-tall upright image.
+    var cropGuideNormY: (top: CGFloat, bottom: CGFloat) {
+        let s = captureSize
+        let portH  = s.width               // portrait height = landscape width (640 for VGA)
+        let cropH  = s.height * 9.0 / 16.0 // 270 for VGA (= output height after rotation)
+        return ((portH - cropH) / (2 * portH),
+                (portH + cropH) / (2 * portH))
+    }
 }
 
 final class CaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
