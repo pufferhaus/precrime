@@ -166,13 +166,17 @@ class MockReport:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("0.0.0.0", port))
         sock.settimeout(1.0)
+        # Tee socket — forwards every RTP packet to localhost:(port+200) for gst-launch viewing
+        tee = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        view_port = port + 200
         last_report = time.time()
         packets = 0
-        print(f"[rtp] listening on :{port} for {name!r}")
+        print(f"[rtp] listening on :{port} for {name!r}  (view → :{view_port})")
         while not self.shutdown.is_set():
             try:
                 data, _ = sock.recvfrom(2048)
                 packets += 1
+                tee.sendto(data, ("127.0.0.1", view_port))
                 with self.lock:
                     if name in self.sources:
                         self.sources[name].packets_received += 1
@@ -187,6 +191,7 @@ class MockReport:
                 packets = 0
                 last_report = now
         sock.close()
+        tee.close()
 
     # ── Status loop ───────────────────────────────────────────────────────────
 

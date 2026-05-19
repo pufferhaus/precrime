@@ -125,28 +125,29 @@ extension ReportDiscovery: NetServiceDelegate {
     // MARK: - Helpers
 
     private func extractHost(from service: NetService) -> String? {
-        // Prefer hostName (available after resolve).
-        if let h = service.hostName, !h.isEmpty {
-            // Strip trailing dot from mDNS hostname.
-            let clean = h.hasSuffix(".") ? String(h.dropLast()) : h
-            return clean
-        }
-        // Fall back to parsing addresses.
-        guard let addresses = service.addresses else { return nil }
-        for addrData in addresses {
-            let host = addrData.withUnsafeBytes { ptr -> String? in
-                guard let baseAddr = ptr.baseAddress else { return nil }
-                let sa = baseAddr.assumingMemoryBound(to: sockaddr.self)
-                if sa.pointee.sa_family == sa_family_t(AF_INET) {
-                    var buf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                    let sin = baseAddr.assumingMemoryBound(to: sockaddr_in.self)
-                    var inAddr = sin.pointee.sin_addr
-                    inet_ntop(AF_INET, &inAddr, &buf, socklen_t(INET_ADDRSTRLEN))
-                    return String(cString: buf)
+        // Parse addresses first — these give numeric IPv4 strings that inet_pton
+        // can use directly. service.hostName returns an mDNS hostname like
+        // "host.local" which inet_pton cannot parse.
+        if let addresses = service.addresses {
+            for addrData in addresses {
+                let host = addrData.withUnsafeBytes { ptr -> String? in
+                    guard let baseAddr = ptr.baseAddress else { return nil }
+                    let sa = baseAddr.assumingMemoryBound(to: sockaddr.self)
+                    if sa.pointee.sa_family == sa_family_t(AF_INET) {
+                        var buf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                        let sin = baseAddr.assumingMemoryBound(to: sockaddr_in.self)
+                        var inAddr = sin.pointee.sin_addr
+                        inet_ntop(AF_INET, &inAddr, &buf, socklen_t(INET_ADDRSTRLEN))
+                        return String(cString: buf)
+                    }
+                    return nil
                 }
-                return nil
+                if let h = host { return h }
             }
-            if let h = host { return h }
+        }
+        // Fall back to hostName only if no numeric address was found.
+        if let h = service.hostName, !h.isEmpty {
+            return h.hasSuffix(".") ? String(h.dropLast()) : h
         }
         return nil
     }
