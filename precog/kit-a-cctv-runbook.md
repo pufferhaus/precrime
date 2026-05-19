@@ -114,6 +114,21 @@ gst-launch-1.0 \
 
 > `sync=false` is required — the Pi's encoder clock doesn't align with the mac's system clock and frames will be dropped without it.
 
+**Multicast note:** Consumer routers often drop multicast between clients (especially over WiFi). For local testing, use unicast directly to the Pi's IP:
+```bash
+# On Pi (replace 192.168.x.x with Mac IP):
+gst-launch-1.0 v4l2src device=/dev/video0 ! "video/x-raw,format=YUY2,width=720,height=576,framerate=25/1" ! \
+  deinterlace ! videoconvert ! x264enc tune=zerolatency speed-preset=ultrafast bitrate=1500 key-int-max=25 ! \
+  video/x-h264,profile=baseline ! h264parse config-interval=1 ! rtph264pay pt=96 ! \
+  udpsink host=192.168.x.x port=5100 sync=false async=false
+
+# On Mac:
+gst-launch-1.0 udpsrc port=5100 \
+  caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96" ! \
+  rtpjitterbuffer latency=200 ! rtph264depay ! avdec_h264 ! videoconvert ! osxvideosink sync=false
+```
+For the show (all devices on Ethernet to a dedicated switch), multicast works correctly.
+
 **Verify TEMPLE ball:**
 ```bash
 gst-launch-1.0 udpsrc address=239.42.0.1 port=9999 auto-multicast=true ! \
