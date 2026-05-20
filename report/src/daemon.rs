@@ -19,7 +19,6 @@ use tracing::{error, info, warn};
 pub struct Daemon {
     cfg: ReportConfig,
     state: Arc<Mutex<DaemonState>>,
-    _bonjour: Option<std::process::Child>,
 }
 
 struct DaemonState {
@@ -45,7 +44,6 @@ impl Daemon {
                 program: None,
                 preview: None,
             })),
-            _bonjour: None,
         }
     }
 
@@ -152,9 +150,12 @@ impl Daemon {
             shutdown.clone(),
         )?;
 
-        // ── Bonjour publisher subprocess ──────────────────────────────────────
-        self._bonjour =
-            crate::bonjour::spawn_bonjour_publisher(&self.cfg.report_name, self.cfg.reg_port);
+        // ── Bonjour publisher watchdog ────────────────────────────────────────
+        crate::bonjour::spawn_bonjour_publisher(
+            &self.cfg.report_name,
+            self.cfg.reg_port,
+            shutdown.clone(),
+        );
 
         self.event_loop(
             temple_snapshot,
@@ -199,7 +200,17 @@ impl Daemon {
                         warn!(pipeline = which, "pipeline EOS from bus");
                     }
                 }
-                needs_rebuild = true;
+                // Only rebuild if at least one pipeline is live — avoids a tight
+                // loop when both pipelines fail (e.g. no display connected) and
+                // their stale bus watchers keep firing after install_pipelines
+                // already set both to None.
+                let has_live_pipeline = {
+                    let st = self.state.lock();
+                    st.program.is_some() || st.preview.is_some()
+                };
+                if has_live_pipeline {
+                    needs_rebuild = true;
+                }
             }
             if needs_rebuild {
                 if let Err(e) = self.force_rebuild(&bus_tx) {
@@ -209,9 +220,6 @@ impl Daemon {
         }
 
         info!("shutdown signal received — tearing down pipelines");
-        // Kill bonjour subprocess if running.
-        // (self._bonjour is dropped with self after this function returns,
-        //  but explicit kill+wait avoids zombie processes)
         let mut st = self.state.lock();
         if let Some(p) = st.program.take() {
             let _ = p.pipeline.set_state(gstreamer::State::Null);
@@ -270,28 +278,51 @@ impl Daemon {
         }
 
         let state_for_tally = self.state.clone();
-        let preview = build_preview(
+        let preview_result = build_preview(
             sources,
             self.cfg.preview_connector_id,
             Arc::new(move || state_for_tally.lock().active_slot),
-        )?;
-        spawn_bus_watch("preview", &preview.pipeline, bus_tx.clone())?;
-        preview.pipeline.set_state(gstreamer::State::Playing)?;
+        )
+        .and_then(|p| {
+            p.pipeline
+                .set_state(gstreamer::State::Playing)
+                .map_err(|e| anyhow::anyhow!("preview set_state: {e}"))?;
+            spawn_bus_watch("preview", &p.pipeline, bus_tx.clone())?;
+            Ok(p)
+        });
 
-        if sources.is_empty() {
-            let mut st = self.state.lock();
-            st.preview = Some(preview);
-            return Ok(());
-        }
+        let preview = match preview_result {
+            Ok(p) => Some(p),
+            Err(e) => {
+                warn!(error = ?e, "preview pipeline unavailable — no display?");
+                None
+            }
+        };
 
-        let program = build_program(sources, self.cfg.program_connector_id)?;
-        spawn_bus_watch("program", &program.pipeline, bus_tx.clone())?;
-        program.pipeline.set_state(gstreamer::State::Playing)?;
-        let _ = select_slot(&program.selector, 0);
+        let program = if sources.is_empty() {
+            None
+        } else {
+            let program_result = build_program(sources, self.cfg.program_connector_id)
+                .and_then(|p| {
+                    p.pipeline
+                        .set_state(gstreamer::State::Playing)
+                        .map_err(|e| anyhow::anyhow!("program set_state: {e}"))?;
+                    spawn_bus_watch("program", &p.pipeline, bus_tx.clone())?;
+                    let _ = select_slot(&p.selector, 0);
+                    Ok(p)
+                });
+            match program_result {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    warn!(error = ?e, "program pipeline unavailable — no display?");
+                    None
+                }
+            }
+        };
 
         let mut st = self.state.lock();
-        st.preview = Some(preview);
-        st.program = Some(program);
+        st.preview = preview;
+        st.program = program;
         Ok(())
     }
 

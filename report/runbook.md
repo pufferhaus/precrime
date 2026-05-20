@@ -56,6 +56,76 @@ ls /dev/input/by-id/       # look for USB keyboard
 
 ---
 
+## Fresh Pi provisioning (SD card method)
+
+Use this when imaging a new Pi from scratch. Avoids manual SSH sudo setup.
+
+**1. Flash SD card with Pi OS Lite 64-bit** via Raspberry Pi Imager. Before ejecting,
+edit `/Volumes/bootfs/user-data` (cloud-init) to set hostname, SSH key, WiFi, and
+bake in all dependencies:
+
+```yaml
+packages:
+- avahi-daemon
+- avahi-utils          # provides avahi-publish-service (not included in avahi-daemon)
+- gstreamer1.0-tools
+- gstreamer1.0-plugins-base
+- gstreamer1.0-plugins-good
+- gstreamer1.0-plugins-bad
+- gstreamer1.0-plugins-ugly
+- gstreamer1.0-libav
+- libcairo2
+- v4l-utils
+- libdrm-tests          # provides modetest for connector ID discovery
+write_files:
+- path: /etc/sudoers.d/pi-nopasswd
+  owner: root:root
+  permissions: '0440'
+  content: |
+    pi ALL=(ALL) NOPASSWD:ALL
+- path: /etc/systemd/system/report.service
+  # ... (see report/report.service)
+- path: /etc/precrime/report.conf
+  # ... (see report/report.conf.example)
+runcmd:
+- mkdir -p /etc/precrime
+- systemctl daemon-reload
+- systemctl enable report.service
+```
+
+If re-using a card that already booted, bump the instance ID in `cmdline.txt`
+(`ds=nocloud;i=<new-unique-id>`) to force cloud-init to re-run.
+
+**2. Find connector IDs** after first boot (HDMI cables must be plugged in):
+
+```bash
+modetest | grep -A2 "connected"
+# On Pi 5 with Pi OS the IDs are typically 33 (HDMI-A-1) and 42 (HDMI-A-2)
+# but verify — do not assume the example values 32/34 are correct
+```
+
+Update `/etc/precrime/report.conf` with the real IDs, then deploy.
+
+**3. H.264 decoder note:** `v4l2slh264dec` (stateless HW decoder) is not available on
+Pi OS — the V4L2 codec device is HEVC-only (`rpi-hevc-dec`). REPORT auto-detects this
+at startup and falls back to `avdec_h264` (libavcodec software decode). Expect ~50 MB
+RSS at idle and higher under load vs the HW-decode figures in the README.
+
+**4. TEMPLE multicast and IGMP snooping:** On routers with IGMP snooping enabled
+(e.g. GL.iNet Flint 3 in default config), multicast from PRECOGs may be delivered
+intermittently to the REPORT Pi. PRECOG sources will appear and drop from the source
+list. Fix: disable IGMP snooping on the LAN, or set a short IGMP query interval, or
+move to a dedicated unmanaged switch for the PRECRIME subnet.
+
+**5. Dev machine conflict:** If `ios/Witness/scripts/mock_report.py` is running on the
+dev Mac, WITNESS will connect to it instead of the Pi — it publishes the same Bonjour
+service name. Kill it before testing with real hardware:
+```bash
+pkill -f mock_report.py
+```
+
+---
+
 ## Deploy + start
 
 From the dev mac (repo root):

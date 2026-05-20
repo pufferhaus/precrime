@@ -11,8 +11,9 @@ sudo apt install -y \
     gstreamer1.0-plugins-bad \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
-    gstreamer1.0-plugins-rs \
     libcairo2 \
-    v4l-utils
+    v4l-utils \
+    avahi-utils \
+    libdrm-tests
 
 echo "Install complete. Run 'make deploy-report REPORT_HOST=$(hostname)' from the macOS dev machine."

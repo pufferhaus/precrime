@@ -51,27 +51,39 @@ pub fn spawn_ack_sender(
                     }
                 };
 
-                // Collect all destination IPs before sending to minimize lock time.
-                let mut targets: Vec<String> = Vec::new();
+                // Collect registered (name, ip) pairs — name needed for refresh.
+                let registered_targets: Vec<(String, String)> = registered
+                    .lock()
+                    .map(|reg| {
+                        reg.sources
+                            .iter()
+                            .map(|(n, s)| (n.clone(), s.host_ip.clone()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
-                {
-                    if let Ok(reg) = registered.lock() {
-                        for src in reg.sources.values() {
-                            targets.push(src.host_ip.clone());
-                        }
-                    }
-                }
-
-                {
+                // Temple sources: ip only (temple handles its own eviction).
+                let temple_targets: Vec<String> = {
                     let snap = temple_snapshot.lock();
-                    for src in snap.iter() {
-                        if let Some(ref ip) = src.host {
-                            targets.push(ip.clone());
+                    snap.iter()
+                        .filter_map(|s| s.host.clone())
+                        .collect()
+                };
+
+                for (name, ip) in &registered_targets {
+                    let addr = format!("{ip}:{ack_port}");
+                    match socket.send_to(&payload, &addr) {
+                        Ok(_) => {
+                            // Refresh last_seen so actively-acked sources aren't evicted.
+                            if let Ok(mut reg) = registered.lock() {
+                                reg.touch(name);
+                            }
                         }
+                        Err(e) => warn!(dest = %addr, error = ?e, "ack send failed"),
                     }
                 }
 
-                for ip in &targets {
+                for ip in &temple_targets {
                     let addr = format!("{ip}:{ack_port}");
                     if let Err(e) = socket.send_to(&payload, &addr) {
                         warn!(dest = %addr, error = ?e, "ack send failed");

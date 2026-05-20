@@ -65,7 +65,7 @@ impl Receiver {
                     }
                 }
                 Err(e) => {
-                    warn!(error = ?e, "discarded malformed ball");
+                    tracing::debug!(error = ?e, "discarded malformed ball");
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}

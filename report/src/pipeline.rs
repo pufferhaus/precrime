@@ -9,14 +9,21 @@ use gstreamer::prelude::*;
 use gstreamer::{Element, Pipeline};
 use std::sync::Arc;
 
-/// H.264 decoder element. On Linux (Pi 5) uses the stateless V4L2 hardware
-/// decoder for zero-copy DMA-BUF output — cuts per-stream decode RAM from
-/// ~70 MB (software) to ~18 MB and offloads work from the CPU to the VPU.
-/// On macOS dev falls back to libavcodec software decode.
-#[cfg(target_os = "linux")]
-const H264_DECODER: &str = "v4l2slh264dec";
-#[cfg(not(target_os = "linux"))]
-const H264_DECODER: &str = "avdec_h264";
+/// Probe the GStreamer registry once and return the best available H.264 decoder.
+/// Prefers v4l2slh264dec (Pi 5 stateless HW, zero-copy DMA-BUF) when present;
+/// falls back to avdec_h264 (libavcodec SW) on hardware without the V4L2 codec.
+fn h264_decoder() -> &'static str {
+    static DECODER: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+    *DECODER.get_or_init(|| {
+        #[cfg(target_os = "linux")]
+        if gstreamer::ElementFactory::find("v4l2slh264dec").is_some() {
+            tracing::info!("H.264 decoder: v4l2slh264dec (hardware)");
+            return "v4l2slh264dec";
+        }
+        tracing::info!("H.264 decoder: avdec_h264 (software)");
+        "avdec_h264"
+    })
+}
 
 /// Transport mode for a source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,7 +81,7 @@ pub fn program_pipeline_string(sources: &[Source], connector_id: u32) -> String 
              rtph264depay ! h264parse ! {decoder} ! \
              queue max-size-buffers=4 leaky=downstream ! \
              videoconvert ! sel.sink_{i}",
-            decoder = H264_DECODER,
+            decoder = h264_decoder(),
         ));
     }
     parts.push_str(&format!(
@@ -170,7 +177,7 @@ pub fn preview_pipeline_string(sources: &[Source], connector_id: u32) -> String 
              rtph264depay ! h264parse ! {decoder} ! \
              queue max-size-buffers=4 leaky=downstream ! \
              videoconvert ! videoscale ! video/x-raw,width={tile_w},height={tile_h} ! mix.sink_{i}",
-            decoder = H264_DECODER,
+            decoder = h264_decoder(),
         ));
     }
     s.push_str(&format!(
@@ -243,9 +250,7 @@ pub fn build_preview(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        preview_pipeline_string, program_pipeline_string, Source, Transport, H264_DECODER,
-    };
+    use super::{h264_decoder, preview_pipeline_string, program_pipeline_string, Source, Transport};
 
     fn s(name: &str, mcast: &str, port: u16) -> Source {
         Source {
@@ -275,22 +280,18 @@ mod tests {
         let p = program_pipeline_string(&[s("A", "239.42.1.1", 5000)], 32);
         assert!(p.contains("udpsrc address=239.42.1.1 port=5000 auto-multicast=true"));
         assert!(p.contains("rtpjitterbuffer latency=20"));
-        assert!(p.contains(&format!("rtph264depay ! h264parse ! {H264_DECODER}")));
+        let _ = gstreamer::init();
+        assert!(p.contains(&format!("rtph264depay ! h264parse ! {}", h264_decoder())));
         assert!(p.contains("sel.sink_0"));
         assert!(p.ends_with("kmssink connector-id=32"));
         assert!(!p.contains("ndisrc"));
     }
 
-    #[cfg(target_os = "linux")]
     #[test]
-    fn linux_uses_v4l2_hw_decoder() {
-        assert_eq!(H264_DECODER, "v4l2slh264dec");
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn macos_falls_back_to_software_decoder() {
-        assert_eq!(H264_DECODER, "avdec_h264");
+    fn decoder_is_known_element() {
+        let _ = gstreamer::init();
+        let d = h264_decoder();
+        assert!(d == "v4l2slh264dec" || d == "avdec_h264");
     }
 
     #[test]
