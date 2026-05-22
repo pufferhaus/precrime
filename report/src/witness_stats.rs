@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::net::UdpSocket;
 use std::sync::Arc;
 use parking_lot::Mutex;
-use temple::{ThermalState, WitnessStats, WitnessStatsPacket};
+use temple::{WitnessStats, WitnessStatsPacket};
 use tracing::{info, warn};
 
 pub fn spawn_witness_stats_receiver(
@@ -44,6 +44,7 @@ pub fn spawn_witness_stats_receiver(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use temple::ThermalState;
 
     #[test]
     fn witness_stats_packet_deserialises() {

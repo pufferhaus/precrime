@@ -164,11 +164,12 @@ impl Daemon {
                     loop {
                         let (load, new_snap) = hw_stats::read_cpu_load_pct(&cpu_snap);
                         cpu_snap = new_snap;
+                        let mem = hw_stats::read_mem_mb().unwrap_or((0, 0));
                         let hw = HwStats {
                             cpu_temp_mc: hw_stats::read_cpu_temp_mc().unwrap_or(0),
                             cpu_load_pct: load,
-                            mem_used_mb: hw_stats::read_mem_mb().map(|(u, _)| u).unwrap_or(0),
-                            mem_total_mb: hw_stats::read_mem_mb().map(|(_, t)| t).unwrap_or(0),
+                            mem_used_mb: mem.0,
+                            mem_total_mb: mem.1,
                             wifi_rssi_dbm: hw_stats::read_wifi_rssi_dbm(),
                         };
                         *self_hw_tx.lock() = Some(hw);

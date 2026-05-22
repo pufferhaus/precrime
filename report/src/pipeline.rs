@@ -124,15 +124,26 @@ fn grid_for(n: usize) -> (usize, usize) {
 }
 
 pub(crate) fn format_hw_line(hw: &HwStats) -> String {
-    let temp = hw.cpu_temp_mc as f64 / 1000.0;
+    let temp = if hw.cpu_temp_mc == 0 {
+        "--".to_string()
+    } else {
+        format!("{:.1}°C", hw.cpu_temp_mc as f64 / 1000.0)
+    };
+    let load = if hw.cpu_load_pct == 0 && hw.mem_total_mb == 0 {
+        "--".to_string()
+    } else {
+        format!("CPU {}%", hw.cpu_load_pct)
+    };
+    let mem = if hw.mem_total_mb == 0 {
+        "--".to_string()
+    } else {
+        format!("RAM {}/{}M", hw.mem_used_mb, hw.mem_total_mb)
+    };
     let rssi = hw
         .wifi_rssi_dbm
         .map(|r| format!("  {r}dBm"))
         .unwrap_or_default();
-    format!(
-        "{:.1}°C  CPU {}%  RAM {}/{}M{rssi}",
-        temp, hw.cpu_load_pct, hw.mem_used_mb, hw.mem_total_mb
-    )
+    format!("{temp}  {load}  {mem}{rssi}")
 }
 
 fn draw_tile_stats(ctx: &cairo::Context, x: f64, y: f64, tile_h: f64, name: &str, hw: &HwStats) {
@@ -428,5 +439,12 @@ mod tests {
         let hw = HwStats { cpu_temp_mc: 50000, cpu_load_pct: 10, mem_used_mb: 100, mem_total_mb: 1000, wifi_rssi_dbm: None };
         let line = format_hw_line(&hw);
         assert!(!line.contains("dBm"), "no rssi expected: {line}");
+    }
+
+    #[test]
+    fn format_hw_line_shows_dashes_for_zero_stats() {
+        let hw = HwStats { cpu_temp_mc: 0, cpu_load_pct: 0, mem_used_mb: 0, mem_total_mb: 0, wifi_rssi_dbm: None };
+        let line = format_hw_line(&hw);
+        assert!(line.contains("--"), "should show dashes for unavailable stats: {line}");
     }
 }

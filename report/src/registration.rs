@@ -260,7 +260,6 @@ pub fn spawn_registration_server(
                         let registered = registered.clone();
                         let change_tx = change_tx.clone();
                         let report_name = report_name.clone();
-                        let stats_port = stats_port;
                         std::thread::Builder::new()
                             .name("report-reg-conn".into())
                             .spawn(move || {

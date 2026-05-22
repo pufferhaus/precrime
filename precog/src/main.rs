@@ -116,11 +116,12 @@ fn source_element_str(device: &str) -> String {
 /// Build a Ball with fresh hardware stats from the given CPU snapshot.
 fn build_ball(cfg: &PrecogConfig, prev_snap: &hw_stats::CpuSnapshot) -> (hw_stats::CpuSnapshot, Ball) {
     let (load, new_snap) = hw_stats::read_cpu_load_pct(prev_snap);
+    let mem = hw_stats::read_mem_mb().unwrap_or((0, 0));
     let hw = HwStats {
         cpu_temp_mc: hw_stats::read_cpu_temp_mc().unwrap_or(0),
         cpu_load_pct: load,
-        mem_used_mb: hw_stats::read_mem_mb().map(|(u, _)| u).unwrap_or(0),
-        mem_total_mb: hw_stats::read_mem_mb().map(|(_, t)| t).unwrap_or(0),
+        mem_used_mb: mem.0,
+        mem_total_mb: mem.1,
         wifi_rssi_dbm: hw_stats::read_wifi_rssi_dbm(),
     };
     let ball = Ball::V1(BallV1 {
