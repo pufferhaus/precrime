@@ -41,6 +41,37 @@ pub struct VideoInfo {
     pub framerate: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HwStats {
+    pub cpu_temp_mc: u32,
+    pub cpu_load_pct: u8,
+    pub mem_used_mb: u32,
+    pub mem_total_mb: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wifi_rssi_dbm: Option<i16>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ThermalState {
+    Nominal,
+    Fair,
+    Serious,
+    Critical,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WitnessStats {
+    pub battery_pct: u8,
+    pub charging: bool,
+    pub thermal: ThermalState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WitnessStatsPacket {
+    pub name: String,
+    pub stats: WitnessStats,
+}
+
 impl Ball {
     pub fn to_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(self)
@@ -114,5 +145,56 @@ mod tests {
         // Typical Ethernet MTU 1500 minus IPv4/UDP headers ≈ 1472 bytes safe; 600 leaves ample
         // headroom and catches if the ball schema ever bloats unexpectedly.
         assert!(bytes.len() < 600, "ball grew: {} bytes", bytes.len());
+    }
+
+    #[test]
+    fn hw_stats_round_trips_json() {
+        let hw = HwStats {
+            cpu_temp_mc: 42300,
+            cpu_load_pct: 67,
+            mem_used_mb: 280,
+            mem_total_mb: 480,
+            wifi_rssi_dbm: Some(-54),
+        };
+        let json = serde_json::to_string(&hw).unwrap();
+        let parsed: HwStats = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.cpu_temp_mc, 42300);
+        assert_eq!(parsed.wifi_rssi_dbm, Some(-54));
+    }
+
+    #[test]
+    fn hw_stats_omits_rssi_when_none() {
+        let hw = HwStats {
+            cpu_temp_mc: 50000,
+            cpu_load_pct: 10,
+            mem_used_mb: 100,
+            mem_total_mb: 1000,
+            wifi_rssi_dbm: None,
+        };
+        let json = serde_json::to_string(&hw).unwrap();
+        assert!(!json.contains("wifi_rssi_dbm"), "should be omitted when None, got {json}");
+    }
+
+    #[test]
+    fn witness_stats_round_trips_json() {
+        let pkt = WitnessStatsPacket {
+            name: "WITNESS-STAGE".into(),
+            stats: WitnessStats {
+                battery_pct: 84,
+                charging: false,
+                thermal: ThermalState::Nominal,
+            },
+        };
+        let json = serde_json::to_string(&pkt).unwrap();
+        let parsed: WitnessStatsPacket = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "WITNESS-STAGE");
+        assert_eq!(parsed.stats.battery_pct, 84);
+        assert!(!parsed.stats.charging);
+    }
+
+    #[test]
+    fn thermal_state_serialises_as_pascal_case() {
+        let s = serde_json::to_string(&ThermalState::Serious).unwrap();
+        assert_eq!(s, r#""Serious""#);
     }
 }

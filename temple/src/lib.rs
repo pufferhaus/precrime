@@ -8,7 +8,7 @@ pub mod ball;
 pub mod recv;
 pub mod send;
 
-pub use ball::{Ball, BallV1, RtpInfo, VideoInfo};
+pub use ball::{Ball, BallV1, HwStats, RtpInfo, ThermalState, VideoInfo, WitnessStats, WitnessStatsPacket};
 pub use recv::Receiver;
 pub use send::Sender;
 
