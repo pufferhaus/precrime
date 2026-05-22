@@ -3,6 +3,7 @@
 program_connector_id = 32   # set per report-switcher plan Task 2 Step 5 output
 preview_connector_id = 34
 keyboard_device = "/dev/input/event0"
+# stats_port = 4998          # UDP port for WITNESS hw stats push (default: 4998)
 
 # Optional: pin specific PRECOG names to specific number keys.
 # Sources not listed here fall into the remaining slots alphabetically.

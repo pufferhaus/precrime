@@ -39,6 +39,10 @@ pub struct ReportConfig {
     #[serde(default = "default_ack_port")]
     pub ack_port: u16,
 
+    /// UDP port for WITNESS hardware stats push. Default: 4998.
+    #[serde(default = "default_stats_port")]
+    pub stats_port: u16,
+
     /// Identity string used in Bonjour advertisement and ack payload. Default: "REPORT-MAIN".
     #[serde(default = "default_report_name")]
     pub report_name: String,
@@ -61,6 +65,9 @@ fn default_rtp_port_max() -> u16 {
 }
 fn default_ack_port() -> u16 {
     9998
+}
+fn default_stats_port() -> u16 {
+    4998
 }
 fn default_report_name() -> String {
     "REPORT-MAIN".into()
@@ -105,5 +112,28 @@ temple_port = 12345
         let c = ReportConfig::from_toml(raw).unwrap();
         assert_eq!(c.temple_group.to_string(), "239.42.0.99");
         assert_eq!(c.temple_port, 12345);
+    }
+
+    #[test]
+    fn stats_port_defaults_to_4998() {
+        let raw = r#"
+program_connector_id = 32
+preview_connector_id = 34
+keyboard_device = "/dev/input/event0"
+"#;
+        let c = ReportConfig::from_toml(raw).unwrap();
+        assert_eq!(c.stats_port, 4998);
+    }
+
+    #[test]
+    fn stats_port_can_be_overridden() {
+        let raw = r#"
+program_connector_id = 32
+preview_connector_id = 34
+keyboard_device = "/dev/input/event0"
+stats_port = 5555
+"#;
+        let c = ReportConfig::from_toml(raw).unwrap();
+        assert_eq!(c.stats_port, 5555);
     }
 }
