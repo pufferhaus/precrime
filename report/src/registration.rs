@@ -160,6 +160,7 @@ struct RegistrationResponse {
     assigned_port: u16,
     report_name: String,
     ack_port: u16,
+    stats_port: u16,
 }
 
 // ── Per-connection handler ───────────────────────────────────────────────────
@@ -170,6 +171,7 @@ fn handle_registration(
     change_tx: Sender<()>,
     report_name: String,
     ack_port: u16,
+    stats_port: u16,
 ) {
     let peer = match stream.peer_addr() {
         Ok(a) => a.ip().to_string(),
@@ -216,6 +218,7 @@ fn handle_registration(
         assigned_port: port,
         report_name,
         ack_port,
+        stats_port,
     };
     let mut resp_bytes = match serde_json::to_vec(&resp) {
         Ok(b) => b,
@@ -241,6 +244,7 @@ pub fn spawn_registration_server(
     reg_port: u16,
     report_name: String,
     ack_port: u16,
+    stats_port: u16,
     registered: Arc<Mutex<RegisteredSources>>,
     change_tx: Sender<()>,
 ) -> Result<()> {
@@ -256,6 +260,7 @@ pub fn spawn_registration_server(
                         let registered = registered.clone();
                         let change_tx = change_tx.clone();
                         let report_name = report_name.clone();
+                        let stats_port = stats_port;
                         std::thread::Builder::new()
                             .name("report-reg-conn".into())
                             .spawn(move || {
@@ -265,6 +270,7 @@ pub fn spawn_registration_server(
                                     change_tx,
                                     report_name,
                                     ack_port,
+                                    stats_port,
                                 );
                             })
                             .ok();
@@ -343,5 +349,18 @@ mod tests {
         assert_eq!(sources[0].transport, Transport::Unicast);
         assert_eq!(sources[0].port, 5010);
         assert_eq!(sources[0].host, Some("10.0.0.5".into()));
+    }
+
+    #[test]
+    fn registration_response_includes_stats_port() {
+        let resp = RegistrationResponse {
+            assigned_port: 5001,
+            report_name: "REPORT-MAIN".into(),
+            ack_port: 9998,
+            stats_port: 4998,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"stats_port\":4998"), "got {json}");
+        assert!(json.contains("\"assigned_port\":5001"));
     }
 }

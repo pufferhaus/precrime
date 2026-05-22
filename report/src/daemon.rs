@@ -114,6 +114,7 @@ impl Daemon {
             self.cfg.reg_port,
             self.cfg.report_name.clone(),
             self.cfg.ack_port,
+            self.cfg.stats_port,
             registered.clone(),
             change_tx.clone(),
         )?;
