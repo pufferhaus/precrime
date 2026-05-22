@@ -8,17 +8,22 @@ use crate::pipeline::{
 use crate::registration::RegisteredSources;
 use anyhow::Result;
 use gstreamer::prelude::*;
+use hw_stats::CpuSnapshot;
 use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::Duration;
-use temple::{Ball, Receiver as TempleReceiver, BALL_EVICTION_SECS};
+use temple::{Ball, Receiver as TempleReceiver, BALL_EVICTION_SECS, HwStats, WitnessStats};
 use tracing::{error, info, warn};
 
 pub struct Daemon {
     cfg: ReportConfig,
     state: Arc<Mutex<DaemonState>>,
+    hw_stats: Arc<Mutex<HashMap<String, HwStats>>>,
+    witness_stats: Arc<Mutex<HashMap<String, WitnessStats>>>,
+    self_hw: Arc<Mutex<Option<HwStats>>>,
 }
 
 struct DaemonState {
@@ -44,6 +49,9 @@ impl Daemon {
                 program: None,
                 preview: None,
             })),
+            hw_stats: Arc::new(Mutex::new(HashMap::new())),
+            witness_stats: Arc::new(Mutex::new(HashMap::new())),
+            self_hw: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -71,6 +79,7 @@ impl Daemon {
         let port = self.cfg.temple_port;
         let eviction = Duration::from_secs(BALL_EVICTION_SECS);
         let temple_snap_tx = temple_snapshot.clone();
+        let hw_stats_tx = self.hw_stats.clone();
         let change_tx_temple = change_tx.clone();
         std::thread::Builder::new()
             .name("report-temple-rx".into())
@@ -85,8 +94,11 @@ impl Daemon {
                 loop {
                     match rx.poll(Duration::from_secs(1)) {
                         Ok(true) => {
-                            let sources = balls_to_sources(rx.snapshot());
+                            let balls = rx.snapshot();
+                            let sources = balls_to_sources(balls.clone());
+                            let stats = extract_hw_stats(&balls);
                             *temple_snap_tx.lock() = sources;
+                            *hw_stats_tx.lock() = stats;
                             if change_tx_temple.send(()).is_err() {
                                 break;
                             }
@@ -385,6 +397,19 @@ fn balls_to_sources(balls: Vec<Ball>) -> Vec<Source> {
         .collect()
 }
 
+/// Extract hardware stats from balls, keyed by device name (PRECOG-*).
+fn extract_hw_stats(balls: &[Ball]) -> HashMap<String, HwStats> {
+    balls
+        .iter()
+        .filter_map(|b| match b {
+            Ball::V1(v) if v.name.starts_with("PRECOG-") => {
+                v.hw.as_ref().map(|hw| (v.name.clone(), hw.clone()))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 fn spawn_bus_watch(
     which: &'static str,
     pipeline: &gstreamer::Pipeline,
@@ -464,5 +489,55 @@ mod tests {
     #[test]
     fn balls_to_sources_empty_when_no_balls() {
         assert!(balls_to_sources(Vec::new()).is_empty());
+    }
+
+    #[test]
+    fn extract_hw_stats_from_balls_returns_map_keyed_by_name() {
+        let balls = vec![
+            Ball::V1(BallV1 {
+                name: "PRECOG-01".into(),
+                host: "10.0.0.1".into(),
+                rtp: RtpInfo {
+                    mcast: "239.42.1.1".into(),
+                    port: 5000,
+                    pt: 96,
+                    clock_rate: 90000,
+                    encoding_name: "H264".into(),
+                },
+                video: VideoInfo {
+                    width: 1920,
+                    height: 1080,
+                    framerate: "30/1".into(),
+                },
+                hw: Some(HwStats {
+                    cpu_temp_mc: 42300,
+                    cpu_load_pct: 67,
+                    mem_used_mb: 280,
+                    mem_total_mb: 480,
+                    wifi_rssi_dbm: Some(-54),
+                }),
+            }),
+            Ball::V1(BallV1 {
+                name: "PRECOG-02".into(),
+                host: "10.0.0.2".into(),
+                rtp: RtpInfo {
+                    mcast: "239.42.1.2".into(),
+                    port: 5000,
+                    pt: 96,
+                    clock_rate: 90000,
+                    encoding_name: "H264".into(),
+                },
+                video: VideoInfo {
+                    width: 1920,
+                    height: 1080,
+                    framerate: "30/1".into(),
+                },
+                hw: None,
+            }),
+        ];
+        let map = extract_hw_stats(&balls);
+        assert_eq!(map.len(), 1, "only PRECOG-01 has hw");
+        assert_eq!(map["PRECOG-01"].cpu_temp_mc, 42300);
+        assert!(!map.contains_key("PRECOG-02"));
     }
 }

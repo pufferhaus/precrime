@@ -672,6 +672,7 @@ dependencies = [
  "evdev",
  "gstreamer",
  "gstreamer-video",
+ "hw-stats",
  "libc",
  "parking_lot",
  "pretty_assertions",

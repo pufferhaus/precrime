@@ -25,6 +25,7 @@ gstreamer = "0.23"
 gstreamer-video = "0.23"
 cairo-rs = { version = "0.20", features = ["use_glib"] }
 temple = { path = "../temple" }
+hw-stats = { path = "../hw-stats" }
 socket2 = { version = "0.5", features = ["all"] }
 
 [dev-dependencies]
