@@ -177,6 +177,12 @@ impl Daemon {
                 })?;
         }
 
+        // ── WITNESS stats UDP listener ────────────────────────────────────────
+        crate::witness_stats::spawn_witness_stats_receiver(
+            self.cfg.stats_port,
+            self.witness_stats.clone(),
+        )?;
+
         // ── Ack sender thread ─────────────────────────────────────────────────
         crate::ack::spawn_ack_sender(
             registered.clone(),
