@@ -16,4 +16,9 @@ sudo apt install -y \
     avahi-utils \
     libdrm-tests
 
+sudo mkdir -p /etc/systemd/journald.conf.d
+sudo cp "$(dirname "$0")/journald-precrime.conf" /etc/systemd/journald.conf.d/precrime.conf
+sudo systemctl restart systemd-journald
+echo "journald log rotation configured (200M max)"
+
 echo "Install complete. Run 'make deploy-report REPORT_HOST=$(hostname)' from the macOS dev machine."
