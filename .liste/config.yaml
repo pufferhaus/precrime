@@ -1,0 +1,22 @@
+project: precrime
+statuses:
+    - idea
+    - planned
+    - active
+    - done
+    - cancelled
+blocked: true
+types:
+    - feature
+    - bug
+    - idea
+    - task
+    - epic
+priorities:
+    - critical
+    - high
+    - medium
+    - low
+defaults:
+    status: idea
+    priority: medium
