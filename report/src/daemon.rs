@@ -183,6 +183,14 @@ impl Daemon {
             self.witness_stats.clone(),
         )?;
 
+        // ── Stats logger thread ───────────────────────────────────────────────────
+        crate::stats_log::spawn_stats_logger(
+            self.hw_stats.clone(),
+            self.witness_stats.clone(),
+            self.self_hw.clone(),
+            shutdown.clone(),
+        )?;
+
         // ── Ack sender thread ─────────────────────────────────────────────────
         crate::ack::spawn_ack_sender(
             registered.clone(),
