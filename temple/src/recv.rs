@@ -112,6 +112,7 @@ mod tests {
                 height: 720,
                 framerate: "30/1".into(),
             },
+            hw: None,
         })
     }
 

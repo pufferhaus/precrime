@@ -18,6 +18,8 @@ pub struct BallV1 {
     pub host: String,
     pub rtp: RtpInfo,
     pub video: VideoInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hw: Option<HwStats>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -108,6 +110,7 @@ mod tests {
                 height: 1080,
                 framerate: "30/1".into(),
             },
+            hw: None,
         })
     }
 
@@ -196,5 +199,57 @@ mod tests {
     fn thermal_state_serialises_as_pascal_case() {
         let s = serde_json::to_string(&ThermalState::Serious).unwrap();
         assert_eq!(s, r#""Serious""#);
+    }
+
+    #[test]
+    fn ballv1_with_hw_round_trips() {
+        let b = Ball::V1(BallV1 {
+            name: "PRECOG-01".into(),
+            host: "10.0.0.1".into(),
+            rtp: RtpInfo {
+                mcast: "239.42.1.1".into(),
+                port: 5000,
+                pt: 96,
+                clock_rate: 90000,
+                encoding_name: "H264".into(),
+            },
+            video: VideoInfo { width: 1920, height: 1080, framerate: "30/1".into() },
+            hw: Some(HwStats {
+                cpu_temp_mc: 42300,
+                cpu_load_pct: 67,
+                mem_used_mb: 280,
+                mem_total_mb: 480,
+                wifi_rssi_dbm: Some(-54),
+            }),
+        });
+        let bytes = b.to_json().unwrap();
+        let parsed = Ball::from_json(&bytes).unwrap();
+        assert_eq!(b, parsed);
+    }
+
+    #[test]
+    fn ballv1_without_hw_is_backward_compatible() {
+        // A ball JSON produced by an old PRECOG (no hw field) must parse cleanly.
+        let raw = br#"{"v":"1","name":"PRECOG-01","host":"10.0.0.1","rtp":{"mcast":"239.42.1.1","port":5000,"pt":96,"clock_rate":90000,"encoding_name":"H264"},"video":{"width":1920,"height":1080,"framerate":"30/1"}}"#;
+        let b = Ball::from_json(raw).unwrap();
+        if let Ball::V1(v) = b {
+            assert!(v.hw.is_none());
+        } else {
+            panic!("expected V1");
+        }
+    }
+
+    #[test]
+    fn ballv1_hw_omitted_from_json_when_none() {
+        let b = BallV1 {
+            name: "PRECOG-01".into(),
+            host: "10.0.0.1".into(),
+            rtp: RtpInfo { mcast: "239.42.1.1".into(), port: 5000, pt: 96, clock_rate: 90000, encoding_name: "H264".into() },
+            video: VideoInfo { width: 1920, height: 1080, framerate: "30/1".into() },
+            hw: None,
+        };
+        let ball = Ball::V1(b);
+        let json = std::str::from_utf8(&ball.to_json().unwrap()).unwrap().to_owned();
+        assert!(!json.contains("hw"), "hw should be absent when None, got {json}");
     }
 }

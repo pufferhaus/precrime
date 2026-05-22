@@ -130,6 +130,7 @@ fn spawn_ball_thread(cfg: &PrecogConfig, shutdown: Arc<AtomicBool>) -> Result<()
             height: cfg.height,
             framerate: cfg.framerate.clone(),
         },
+        hw: None,
     });
     let sender =
         BallSender::new(cfg.temple_group, cfg.temple_port).context("create ball sender")?;
