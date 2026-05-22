@@ -55,6 +55,7 @@ final class AppModel: ObservableObject {
     private var reportDiscovery: ReportDiscovery?
     private var registrationClient: RegistrationClient?
     private var ackReceiver: AckReceiver?
+    private var statsPublisher: StatsPublisher?
 
     // Keep-alive re-registration.
     private var keepAliveTimer: Timer?
@@ -344,6 +345,14 @@ final class AppModel: ObservableObject {
                 }
             }
 
+            // Start stats publisher on initial registration only.
+            if !isKeepAlive, let host = currentReportHost {
+                statsPublisher?.stop()
+                let pub = StatsPublisher(sourceName: settings.sourceName)
+                pub.start(reportHost: host, statsPort: reg.statsPort)
+                statsPublisher = pub
+            }
+
         case .failure(let error):
             Self.logger.error("registration failed (keepAlive=\(isKeepAlive)): \(error.localizedDescription, privacy: .public)")
             if isKeepAlive {
@@ -431,6 +440,8 @@ final class AppModel: ObservableObject {
         ackWatchTimer = nil
         ackReceiver?.stop()
         ackReceiver = nil
+        statsPublisher?.stop()
+        statsPublisher = nil
         currentReportHost = nil
         hot.sender?.untarget()  // Stop sending until re-registered.
         // Note: we leave isStreaming true; the pipeline is alive.
