@@ -1,0 +1,11 @@
+[package]
+name = "hw-stats"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+authors = ["Cody <byrnes.cody@gmail.com>"]
+description = "PRECRIME: Pi hardware stats readers (CPU temp/load, memory, WiFi RSSI)"
+
+[lints]
+workspace = true
