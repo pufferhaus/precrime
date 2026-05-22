@@ -133,7 +133,8 @@ class MockReport:
             resp = json.dumps({
                 "assigned_port": port,
                 "report_name": self.name,
-                "ack_port": ACK_PORT
+                "ack_port": ACK_PORT,
+                "stats_port": 4998
             })
             conn.sendall((resp + "\n").encode())
             res = req.get("resolution", "?")

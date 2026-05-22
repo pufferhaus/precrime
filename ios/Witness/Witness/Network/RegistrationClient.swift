@@ -12,6 +12,7 @@ final class RegistrationClient {
         let assignedPort: UInt16
         let reportName: String
         let ackPort: UInt16
+        let statsPort: UInt16
     }
 
     /// Called on success or failure (main queue).
@@ -99,7 +100,9 @@ final class RegistrationClient {
               assignedPort > 0, assignedPort < 65536,
               let reportName = json["report_name"] as? String,
               let ackPort = json["ack_port"] as? Int,
-              ackPort > 0, ackPort < 65536 else {
+              ackPort > 0, ackPort < 65536,
+              let statsPort = json["stats_port"] as? Int,
+              statsPort > 0, statsPort < 65536 else {
             deliver(.failure(RegistrationError.missingFields))
             return
         }
@@ -107,7 +110,8 @@ final class RegistrationClient {
         let reg = Registration(
             assignedPort: UInt16(assignedPort),
             reportName: reportName,
-            ackPort: UInt16(ackPort)
+            ackPort: UInt16(ackPort),
+            statsPort: UInt16(statsPort)
         )
         deliver(.success(reg))
     }
