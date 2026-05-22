@@ -328,10 +328,14 @@ impl Daemon {
         }
 
         let state_for_tally = self.state.clone();
+        let hw_for_preview = self.hw_stats.clone();
+        let self_hw_for_preview = self.self_hw.clone();
         let preview_result = build_preview(
             sources,
             self.cfg.preview_connector_id,
             Arc::new(move || state_for_tally.lock().active_slot),
+            Arc::new(move || hw_for_preview.lock().clone()),
+            Arc::new(move || self_hw_for_preview.lock().clone()),
         )
         .and_then(|p| {
             p.pipeline

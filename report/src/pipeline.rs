@@ -7,7 +7,9 @@
 use anyhow::{Context, Result};
 use gstreamer::prelude::*;
 use gstreamer::{Element, Pipeline};
+use std::collections::HashMap;
 use std::sync::Arc;
+use temple::HwStats;
 
 /// Probe the GStreamer registry once and return the best available H.264 decoder.
 /// Prefers v4l2slh264dec (Pi 5 stateless HW, zero-copy DMA-BUF) when present;
@@ -121,6 +123,54 @@ fn grid_for(n: usize) -> (usize, usize) {
     }
 }
 
+pub(crate) fn format_hw_line(hw: &HwStats) -> String {
+    let temp = hw.cpu_temp_mc as f64 / 1000.0;
+    let rssi = hw
+        .wifi_rssi_dbm
+        .map(|r| format!("  {r}dBm"))
+        .unwrap_or_default();
+    format!(
+        "{:.1}°C  CPU {}%  RAM {}/{}M{rssi}",
+        temp, hw.cpu_load_pct, hw.mem_used_mb, hw.mem_total_mb
+    )
+}
+
+fn draw_tile_stats(ctx: &cairo::Context, x: f64, y: f64, tile_h: f64, name: &str, hw: &HwStats) {
+    let line2 = format_hw_line(hw);
+    let text_y = y + tile_h - 8.0;
+    let line_h = 22.0_f64;
+
+    ctx.set_source_rgba(0.0, 0.0, 0.0, 0.65);
+    ctx.rectangle(x + 4.0, text_y - line_h * 2.0 - 4.0, 500.0, line_h * 2.0 + 8.0);
+    let _ = ctx.fill();
+
+    ctx.select_font_face("Monospace", cairo::FontSlant::Normal, cairo::FontWeight::Normal);
+    ctx.set_font_size(14.0);
+    ctx.set_source_rgba(1.0, 1.0, 1.0, 1.0);
+    ctx.move_to(x + 8.0, text_y - line_h);
+    let _ = ctx.show_text(name);
+    ctx.move_to(x + 8.0, text_y);
+    let _ = ctx.show_text(&line2);
+}
+
+fn draw_self_stats(ctx: &cairo::Context, hw: &HwStats) {
+    let temp = hw.cpu_temp_mc as f64 / 1000.0;
+    let text = format!(
+        "REPORT  {:.1}°C  CPU {}%  RAM {}/{}M",
+        temp, hw.cpu_load_pct, hw.mem_used_mb, hw.mem_total_mb
+    );
+
+    ctx.set_source_rgba(0.0, 0.0, 0.0, 0.65);
+    ctx.rectangle(1920.0 - 430.0, 8.0, 422.0, 28.0);
+    let _ = ctx.fill();
+
+    ctx.select_font_face("Monospace", cairo::FontSlant::Normal, cairo::FontWeight::Normal);
+    ctx.set_font_size(14.0);
+    ctx.set_source_rgba(1.0, 1.0, 1.0, 1.0);
+    ctx.move_to(1920.0 - 426.0, 28.0);
+    let _ = ctx.show_text(&text);
+}
+
 pub struct PreviewPipeline {
     pub pipeline: Pipeline,
 }
@@ -190,6 +240,8 @@ pub fn build_preview(
     sources: &[Source],
     connector_id: u32,
     get_active_slot: Arc<dyn Fn() -> Option<u8> + Send + Sync>,
+    get_hw_stats: Arc<dyn Fn() -> HashMap<String, HwStats> + Send + Sync>,
+    get_self_hw: Arc<dyn Fn() -> Option<HwStats> + Send + Sync>,
 ) -> Result<PreviewPipeline> {
     let s = preview_pipeline_string(sources, connector_id);
     if sources.is_empty() {
@@ -214,6 +266,9 @@ pub fn build_preview(
         .context("cairooverlay 'tally' missing")?;
 
     let cb = get_active_slot.clone();
+    let hw_cb = get_hw_stats.clone();
+    let self_hw_cb = get_self_hw.clone();
+    let source_names: Vec<String> = sources.iter().map(|s| s.name.clone()).collect();
     overlay.connect("draw", true, move |args| {
         // args: [element, cairo_t_ptr_as_boxed, timestamp_u64, duration_u64]
         // cairo::Context does not implement glib::value::FromValue; extract via raw pointer.
@@ -224,6 +279,8 @@ pub fn build_preview(
             ) as *mut cairo::ffi::cairo_t;
             cairo::Context::from_raw_borrow(ptr)
         };
+
+        // Tally border (existing behaviour)
         if let Some(slot) = cb() {
             if (1..=n as u8).contains(&slot) {
                 let idx = (slot - 1) as u32;
@@ -242,6 +299,24 @@ pub fn build_preview(
                 let _ = ctx.stroke();
             }
         }
+
+        // PRECOG hw stats per tile
+        let stats_snapshot = hw_cb();
+        for (i, name) in source_names.iter().enumerate() {
+            if let Some(hw) = stats_snapshot.get(name) {
+                let col = (i % cols) as u32;
+                let row = (i / cols) as u32;
+                let x = (col * tile_w) as f64;
+                let y = (row * tile_h) as f64;
+                draw_tile_stats(&ctx, x, y, tile_h as f64, name, hw);
+            }
+        }
+
+        // REPORT self stats — top-right corner
+        if let Some(hw) = self_hw_cb() {
+            draw_self_stats(&ctx, &hw);
+        }
+
         None
     });
 
@@ -250,7 +325,8 @@ pub fn build_preview(
 
 #[cfg(test)]
 mod tests {
-    use super::{h264_decoder, preview_pipeline_string, program_pipeline_string, Source, Transport};
+    use super::{format_hw_line, h264_decoder, preview_pipeline_string, program_pipeline_string, Source, Transport};
+    use temple::HwStats;
 
     fn s(name: &str, mcast: &str, port: u16) -> Source {
         Source {
@@ -329,5 +405,28 @@ mod tests {
         assert!(p.ends_with(
             "mix. ! videoconvert ! cairooverlay name=tally ! videoconvert ! kmssink connector-id=34"
         ));
+    }
+
+    #[test]
+    fn format_hw_line_formats_temp_and_load() {
+        let hw = HwStats {
+            cpu_temp_mc: 42300,
+            cpu_load_pct: 67,
+            mem_used_mb: 280,
+            mem_total_mb: 480,
+            wifi_rssi_dbm: Some(-54),
+        };
+        let line = format_hw_line(&hw);
+        assert!(line.contains("42.3"), "temp: {line}");
+        assert!(line.contains("67%"), "load: {line}");
+        assert!(line.contains("280/480M"), "mem: {line}");
+        assert!(line.contains("-54dBm"), "rssi: {line}");
+    }
+
+    #[test]
+    fn format_hw_line_omits_rssi_when_none() {
+        let hw = HwStats { cpu_temp_mc: 50000, cpu_load_pct: 10, mem_used_mb: 100, mem_total_mb: 1000, wifi_rssi_dbm: None };
+        let line = format_hw_line(&hw);
+        assert!(!line.contains("dBm"), "no rssi expected: {line}");
     }
 }
