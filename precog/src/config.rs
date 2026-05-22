@@ -3,7 +3,7 @@
 use serde::Deserialize;
 use std::net::Ipv4Addr;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PrecogConfig {
     /// Source display name, e.g. "PRECOG-02-CCTV-DOOR".
     pub source_name: String,

@@ -17,6 +17,7 @@ tracing-journald = "0.3"
 signal-hook = "0.3"
 gstreamer = "0.23"
 temple = { path = "../temple" }
+hw-stats = { path = "../hw-stats" }
 
 [lints]
 workspace = true

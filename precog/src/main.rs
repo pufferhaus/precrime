@@ -10,7 +10,7 @@ use std::fs;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use temple::{Ball, BallV1, RtpInfo, Sender as BallSender, VideoInfo, BALL_PERIOD_SECS};
+use temple::{Ball, BallV1, HwStats, RtpInfo, Sender as BallSender, VideoInfo, BALL_PERIOD_SECS};
 use tracing::{error, info, warn};
 
 fn main() -> Result<()> {
@@ -113,8 +113,16 @@ fn source_element_str(device: &str) -> String {
     format!("avfvideosrc device-index={idx}")
 }
 
-/// Spawn a thread that emits a `Ball::V1` every `BALL_PERIOD_SECS`.
-fn spawn_ball_thread(cfg: &PrecogConfig, shutdown: Arc<AtomicBool>) -> Result<()> {
+/// Build a Ball with fresh hardware stats from the given CPU snapshot.
+fn build_ball(cfg: &PrecogConfig, prev_snap: &hw_stats::CpuSnapshot) -> (hw_stats::CpuSnapshot, Ball) {
+    let (load, new_snap) = hw_stats::read_cpu_load_pct(prev_snap);
+    let hw = HwStats {
+        cpu_temp_mc: hw_stats::read_cpu_temp_mc().unwrap_or(0),
+        cpu_load_pct: load,
+        mem_used_mb: hw_stats::read_mem_mb().map(|(u, _)| u).unwrap_or(0),
+        mem_total_mb: hw_stats::read_mem_mb().map(|(_, t)| t).unwrap_or(0),
+        wifi_rssi_dbm: hw_stats::read_wifi_rssi_dbm(),
+    };
     let ball = Ball::V1(BallV1 {
         name: cfg.source_name.clone(),
         host: cfg.host.clone(),
@@ -130,14 +138,23 @@ fn spawn_ball_thread(cfg: &PrecogConfig, shutdown: Arc<AtomicBool>) -> Result<()
             height: cfg.height,
             framerate: cfg.framerate.clone(),
         },
-        hw: None,
+        hw: Some(hw),
     });
+    (new_snap, ball)
+}
+
+/// Spawn a thread that emits a `Ball::V1` every `BALL_PERIOD_SECS`.
+fn spawn_ball_thread(cfg: &PrecogConfig, shutdown: Arc<AtomicBool>) -> Result<()> {
+    let cfg = cfg.clone();
     let sender =
         BallSender::new(cfg.temple_group, cfg.temple_port).context("create ball sender")?;
     std::thread::Builder::new()
         .name("precog-ball-tx".into())
         .spawn(move || {
+            let mut cpu_snap = hw_stats::CpuSnapshot::default();
             while !shutdown.load(Ordering::Relaxed) {
+                let (new_snap, ball) = build_ball(&cfg, &cpu_snap);
+                cpu_snap = new_snap;
                 if let Err(e) = sender.send(&ball) {
                     warn!(error = ?e, "ball send failed");
                 }
@@ -184,7 +201,7 @@ fn init_tracing() {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_pipeline_string, source_element_str};
+    use super::{build_ball, build_pipeline_string, source_element_str};
     use crate::config::PrecogConfig;
 
     fn cfg() -> PrecogConfig {
@@ -240,5 +257,19 @@ rtp_port = 5000
         let s = build_pipeline_string(&cfg());
         assert!(!s.contains("ndisink"));
         assert!(!s.contains("ndisinkcombiner"));
+    }
+
+    #[test]
+    fn build_ball_static_fields_match_config() {
+        let c = cfg();
+        let snap = hw_stats::CpuSnapshot::default();
+        let (_, ball) = build_ball(&c, &snap);
+        if let temple::Ball::V1(v) = ball {
+            assert_eq!(v.name, c.source_name);
+            assert_eq!(v.rtp.port, c.rtp_port);
+            assert!(v.hw.is_some(), "hw should be populated");
+        } else {
+            panic!("expected V1");
+        }
     }
 }
